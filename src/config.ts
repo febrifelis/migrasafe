@@ -2,10 +2,13 @@ import fs from "fs";
 import path from "path";
 import { Severity } from "./types";
 
+export type Dialect = "postgresql" | "mysql" | "auto";
+
 export interface MigrasafeConfig {
   ignore?: string[];
   disableRules?: string[];
   minSeverity?: Severity;
+  dialect?: Dialect;
   rules?: Record<string, { severity?: Severity; disabled?: boolean }>;
 }
 

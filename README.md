@@ -388,6 +388,7 @@ Check a SQL file or directory for unsafe migrations.
 | `--format <text\|json>` | `text` | Output format |
 | `--min-severity <level>` | `INFO` | Minimum severity to report: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO` |
 | `--ignore <pattern...>` | — | Skip files matching regex pattern(s) |
+| `--dialect <dialect>` | `auto` | SQL dialect: `postgresql`, `mysql`, `auto` |
 
 ### `migrasafe rules`
 
@@ -556,6 +557,29 @@ migrasafe understands standard SQL and PostgreSQL extensions out of the box:
 - **Migration tools:** Flyway, Liquibase, golang-migrate, Alembic, Sqitch, Prisma
 - **Databases:** PostgreSQL (full support), MySQL/MariaDB (core rules + MODIFY/CHANGE COLUMN)
 - **SQL features handled correctly:** dollar-quoted strings (`$$`), single/double-quoted literals, line comments (`--`), block comments (`/* */`), CTEs, subqueries, stored procedures, CRLF line endings, UTF-8 BOM
+
+### Dialect mode
+
+Use `--dialect` to apply only rules relevant to your database engine:
+
+```bash
+# Only check rules that apply to PostgreSQL
+npx migrasafe check ./migrations/ --dialect postgresql
+
+# Only check rules that apply to MySQL/MariaDB
+npx migrasafe check ./migrations/ --dialect mysql
+
+# Auto-detect from SQL content (default)
+npx migrasafe check ./migrations/ --dialect auto
+```
+
+Or set it in your config file:
+
+```json
+{ "dialect": "postgresql" }
+```
+
+In `auto` mode, migrasafe detects the dialect from signals in the SQL content (e.g. `$$`, `RETURNING`, `SERIAL` for PostgreSQL; backticks, `AUTO_INCREMENT`, `ENGINE=` for MySQL).
 
 ---
 

@@ -82,7 +82,7 @@ export const RULES: Rule[] = [
     severity: "CRITICAL",
     category: "data-loss",
     dialect: "all",
-    pattern: /\bDELETE\s+FROM\s+\S+\s*(?:;|$)/i,
+    pattern: /\bDELETE\b/i,           // broad trigger; refined by matcher below
     message: "DELETE without WHERE will remove every row in the table.",
     suggestion: "Add a WHERE clause to target only the intended rows.",
   },
@@ -91,7 +91,7 @@ export const RULES: Rule[] = [
     severity: "HIGH",
     category: "data-loss",
     dialect: "all",
-    pattern: /\bUPDATE\s+\S+\s+SET\b(?![\s\S]*\bWHERE\b)/i,
+    pattern: /\bUPDATE\b/i,           // broad trigger; refined by matcher below
     message: "UPDATE without WHERE will modify every row in the table.",
     suggestion: "Add a WHERE clause to target only the intended rows.",
   },
@@ -304,12 +304,44 @@ function sanitize(sql: string): string {
     .replace(/"(?:[^"\\]|\\.)*"/g, '""');              // double-quoted identifiers
 }
 
+// Returns true when the sanitized SQL has a WHERE clause at the top level
+// (not inside a subquery). We count paren depth to skip nested WHERE clauses.
+function hasTopLevelWhere(sql: string): boolean {
+  const upper = sql.toUpperCase();
+  let depth = 0;
+  for (let i = 0; i < upper.length; i++) {
+    if (upper[i] === "(") { depth++; continue; }
+    if (upper[i] === ")") { depth--; continue; }
+    if (depth === 0 && upper.slice(i).match(/^WHERE\b/)) return true;
+  }
+  return false;
+}
+
+// Returns true when the statement is DELETE/UPDATE and has no top-level WHERE
+function isMissingWhere(sql: string, keyword: "DELETE" | "UPDATE"): boolean {
+  const upper = sql.toUpperCase().trimStart();
+  if (!upper.startsWith(keyword)) return false;
+  // USING / JOIN style DELETE that carries the filter in FROM — still flag it;
+  // only a real WHERE clause is considered safe.
+  return !hasTopLevelWhere(sql);
+}
+
+// Detect dialect from SQL content when dialect is "auto"
+export function detectDialect(sql: string): "postgresql" | "mysql" {
+  const mysqlSignals = /\bENGINE\s*=|\bAUTO_INCREMENT\b|\bTINYINT\b|\bMEDIUMINT\b|\bBACKTICK|`/i;
+  const pgSignals = /\bSERIAL\b|\bBIGSERIAL\b|\$\d+|\bRETURNING\b|\bON\s+CONFLICT\b|\bCONCURRENTLY\b/i;
+  const pgScore = (sql.match(pgSignals) ?? []).length;
+  const myScore = (sql.match(mysqlSignals) ?? []).length;
+  return myScore > pgScore ? "mysql" : "postgresql";
+}
+
 export function checkStatement(
   statement: string,
   lineNumber: number,
   file: string,
   disableRules: string[] = [],
-  severityOverrides: Record<string, Severity> = {}
+  severityOverrides: Record<string, Severity> = {},
+  dialect: "postgresql" | "mysql" | "auto" = "auto"
 ): Issue[] {
   const issues: Issue[] = [];
   const trimmed = statement.trim();
@@ -317,9 +349,25 @@ export function checkStatement(
 
   const sanitized = sanitize(trimmed);
 
+  // Resolve effective dialect for rule filtering
+  const effectiveDialect = dialect === "auto" ? detectDialect(sanitized) : dialect;
+
   for (const rule of RULES) {
     if (disableRules.includes(rule.id)) continue;
-    if (rule.pattern.test(sanitized)) {
+    // Skip rules that don't apply to this dialect
+    if (rule.dialect !== "all" && rule.dialect !== effectiveDialect) continue;
+
+    // Use context-aware WHERE-clause check for DELETE/UPDATE
+    let matched: boolean;
+    if (rule.id === "DELETE_WITHOUT_WHERE") {
+      matched = isMissingWhere(sanitized, "DELETE");
+    } else if (rule.id === "UPDATE_WITHOUT_WHERE") {
+      matched = isMissingWhere(sanitized, "UPDATE");
+    } else {
+      matched = rule.pattern.test(sanitized);
+    }
+
+    if (matched) {
       const severity = severityOverrides[rule.id] ?? rule.severity;
       issues.push({
         severity,

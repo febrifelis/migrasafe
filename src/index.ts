@@ -7,6 +7,7 @@ import { formatText, formatJson } from "./output/formatter";
 import { loadConfig } from "./config";
 import { Severity } from "./types";
 import { RULES } from "./checker/rules";
+import { Dialect } from "./config";
 
 const SEVERITY_ORDER: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
 
@@ -15,7 +16,7 @@ const program = new Command();
 program
   .name("migrasafe")
   .description("Detect unsafe SQL migrations before deploying to production")
-  .version("1.1.0");
+  .version("1.2.0");
 
 program
   .command("check <target>")
@@ -27,10 +28,11 @@ program
     "Minimum severity to report: CRITICAL, HIGH, MEDIUM, LOW, INFO",
     "INFO"
   )
+  .option("--dialect <dialect>", "SQL dialect: postgresql, mysql, auto (default: auto)", "auto")
   .action(
     (
       target: string,
-      options: { format: string; ignore?: string[]; minSeverity: string }
+      options: { format: string; ignore?: string[]; minSeverity: string; dialect: string }
     ) => {
       const resolved = path.resolve(target);
 
@@ -42,6 +44,7 @@ program
       // Load config file, then merge CLI flags (CLI takes precedence)
       const config = loadConfig();
       if (options.ignore) config.ignore = [...(config.ignore ?? []), ...options.ignore];
+      if (options.dialect) config.dialect = options.dialect as Dialect;
 
       const minSeverity = (options.minSeverity.toUpperCase() as Severity) ?? "INFO";
       const minIndex = SEVERITY_ORDER.indexOf(minSeverity);

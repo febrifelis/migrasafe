@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-06-28
+
+### Added
+- `--dialect <postgresql|mysql|auto>` flag on `check` command — filters rules to only apply those relevant to the target database engine
+- `dialect` field in `.migrasaferc.json` config
+- Auto-dialect detection from SQL content signals (SERIAL/$$/$1/RETURNING for PostgreSQL; backticks/AUTO_INCREMENT/ENGINE= for MySQL)
+- Context-aware WHERE clause detection for DELETE/UPDATE — uses paren-depth tracking to correctly distinguish top-level WHERE from subquery WHERE
+
+### Improved
+- `DELETE_WITHOUT_WHERE` and `UPDATE_WITHOUT_WHERE` now use a recursive clause extractor instead of a simple regex — eliminates false positives from subqueries and USING clauses
+
 ## [1.1.0] - 2026-06-28
 
 ### Added

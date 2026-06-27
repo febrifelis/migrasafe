@@ -181,7 +181,7 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
       ...configRuleDisables,
       ...(inlineIgnore ?? []),
     ];
-    return checkStatement(statement, line, fileName, effectiveDisable, severityOverrides);
+    return checkStatement(statement, line, fileName, effectiveDisable, severityOverrides, config.dialect ?? "auto");
   });
   return { file: filePath, issues };
 }
