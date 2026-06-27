@@ -48,7 +48,7 @@ export function formatText(result: ScanResult): string {
   }
 
   if (!hasIssues) {
-    lines.push(chalk.green("✔ Semua migration aman — tidak ada issue ditemukan.\n"));
+    lines.push(chalk.green("✔ All migrations are safe — no issues found.\n"));
   }
 
   lines.push(chalk.bold("── Summary ──────────────────────────────"));
@@ -58,13 +58,13 @@ export function formatText(result: ScanResult): string {
     lines.push(SEVERITY_COLOR.HIGH(`  HIGH     : ${result.highCount}`));
   if (result.mediumCount > 0)
     lines.push(SEVERITY_COLOR.MEDIUM(`  MEDIUM   : ${result.mediumCount}`));
-  lines.push(`  Total    : ${result.totalIssues} issue(s) dalam ${filesScanned} file`);
+  lines.push(`  Total    : ${result.totalIssues} issue(s) across ${filesScanned} file(s)`);
   lines.push("");
 
   if (result.safe) {
-    lines.push(chalk.green.bold("✔ SAFE — aman untuk deploy ke production"));
+    lines.push(chalk.green.bold("✔ SAFE — ready to deploy to production"));
   } else {
-    lines.push(chalk.red.bold("✖ UNSAFE — selesaikan issue CRITICAL/HIGH sebelum deploy"));
+    lines.push(chalk.red.bold("✖ UNSAFE — resolve all CRITICAL/HIGH issues before deploying"));
   }
 
   lines.push("");

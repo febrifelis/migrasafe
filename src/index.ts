@@ -20,7 +20,7 @@ program
     const resolved = path.resolve(target);
 
     if (!fs.existsSync(resolved)) {
-      console.error(`Error: path tidak ditemukan — ${resolved}`);
+      console.error(`Error: path not found — ${resolved}`);
       process.exit(1);
     }
 
