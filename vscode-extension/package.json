@@ -1,0 +1,67 @@
+{
+  "name": "migrasafe-vscode",
+  "displayName": "migrasafe",
+  "description": "Real-time SQL migration safety analysis",
+  "version": "1.0.0",
+  "publisher": "febrifelis",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/febrifelis/migrasafe"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Other"],
+  "keywords": ["sql", "migration", "safety", "postgresql", "mysql"],
+  "activationEvents": ["onLanguage:sql"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "migrasafe",
+      "properties": {
+        "migrasafe.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time SQL migration checks."
+        },
+        "migrasafe.dialect": {
+          "type": "string",
+          "enum": ["auto", "postgresql", "mysql"],
+          "default": "auto",
+          "description": "SQL dialect to use for analysis."
+        },
+        "migrasafe.minSeverity": {
+          "type": "string",
+          "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
+          "default": "MEDIUM",
+          "description": "Minimum severity level to report."
+        },
+        "migrasafe.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the migrasafe executable (leave empty to use npx migrasafe)."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "migrasafe.checkFile",
+        "title": "migrasafe: Check Current File"
+      },
+      {
+        "command": "migrasafe.clearDiagnostics",
+        "title": "migrasafe: Clear Diagnostics"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json -w",
+    "package": "vsce package",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

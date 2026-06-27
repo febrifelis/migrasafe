@@ -316,7 +316,8 @@ export function checkStatement(
   file: string,
   disableRules: string[] = [],
   severityOverrides: Record<string, Severity> = {},
-  dialect: "postgresql" | "mysql" | "auto" = "auto"
+  dialect: "postgresql" | "mysql" | "auto" = "auto",
+  extraRules: Rule[] = []
 ): Issue[] {
   const issues: Issue[] = [];
   const trimmed = statement.trim();
@@ -327,7 +328,7 @@ export function checkStatement(
   // Resolve effective dialect for rule filtering
   const effectiveDialect = dialect === "auto" ? detectDialect(sanitized) : dialect;
 
-  for (const rule of RULES) {
+  for (const rule of [...RULES, ...extraRules]) {
     if (disableRules.includes(rule.id)) continue;
     // Skip rules that don't apply to this dialect
     if (rule.dialect !== "all" && rule.dialect !== effectiveDialect) continue;

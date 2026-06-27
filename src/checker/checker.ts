@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { CheckResult, ScanResult, Issue, RiskReport, LockType, RollbackDifficulty, DataLossRisk } from "../types";
-import { checkStatement, RULES } from "./rules";
+import { checkStatement, RULES, Rule } from "./rules";
 import { MigrasafeConfig } from "../config";
+import { loadPluginRules } from "../plugins/loader";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_STATEMENTS = 10_000;
@@ -173,6 +174,8 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
     if (opts.severity) severityOverrides[id] = opts.severity;
   }
 
+  const pluginRules = loadPluginRules(config);
+
   const issues = statements.flatMap(({ statement, line }) => {
     const inlineIgnore = ignoreDirectives.get(line);
     if (inlineIgnore !== undefined && inlineIgnore.length === 0) return [];
@@ -181,7 +184,7 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
       ...configRuleDisables,
       ...(inlineIgnore ?? []),
     ];
-    return checkStatement(statement, line, fileName, effectiveDisable, severityOverrides, config.dialect ?? "auto");
+    return checkStatement(statement, line, fileName, effectiveDisable, severityOverrides, config.dialect ?? "auto", pluginRules);
   });
   return { file: filePath, issues };
 }
@@ -211,13 +214,13 @@ function maxOf<T>(order: T[], values: T[]): T {
     order.indexOf(v) > order.indexOf(best) ? v : best, order[0]);
 }
 
-export function computeRisk(issues: Issue[]): RiskReport {
+export function computeRisk(issues: Issue[], extraRules: Rule[] = []): RiskReport {
   if (issues.length === 0) {
     return { score: 0, level: "LOW", maxLock: "none" as LockType, maxRollback: "easy" as RollbackDifficulty, maxDataLoss: "none" as DataLossRisk, hasIrreversible: false, hasCertainDataLoss: false };
   }
 
   // Look up rule metadata for each issue
-  const ruleMap = new Map(RULES.map((r) => [r.id, r]));
+  const ruleMap = new Map([...RULES, ...extraRules].map((r) => [r.id, r]));
   const locks: LockType[] = [];
   const rollbacks: RollbackDifficulty[] = [];
   const dataLosses: DataLossRisk[] = [];

@@ -10,6 +10,7 @@ export interface MigrasafeConfig {
   minSeverity?: Severity;
   dialect?: Dialect;
   rules?: Record<string, { severity?: Severity; disabled?: boolean }>;
+  plugins?: string[];
 }
 
 const CONFIG_FILES = [".migrasaferc.json", ".migrasaferc", "migrasafe.config.json"];

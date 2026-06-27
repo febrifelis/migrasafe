@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2026-06-28
+
+### Added — V5 Plugin API
+- `plugins` field in `.migrasaferc.json` — load custom company rules from JS files
+- `src/plugins/loader.ts` — validates and loads plugin rule arrays at runtime
+- `examples/company-rules.js` — example plugin with 3 company-specific rules
+- Plugin rules participate in risk scoring, dialect filtering, and inline ignore directives
+
+### Added — V7 VS Code Extension (`vscode-extension/`)
+- Real-time diagnostics on SQL files (debounced, runs on open/save/change)
+- Error/Warning severity mapping: CRITICAL+HIGH → Error, MEDIUM+ → Warning
+- Quick Fix: insert `-- migrasafe-disable-next-line RULE_ID` or suppress all rules
+- Hover provider: shows rule message, suggestion, and suppress hint
+- Status bar item showing live scan state and issue count
+- Configurable via VS Code settings: `migrasafe.enabled`, `migrasafe.dialect`, `migrasafe.minSeverity`, `migrasafe.executablePath`
+
+### Added — V8 AI Assistance
+- `migrasafe suggest <file>` — shows safe migration patterns for every detected issue
+- `migrasafe suggest --rule <RULE_ID>` — detailed safe approach + example SQL for a specific rule
+- `migrasafe suggest --list` — list all available migration patterns
+- 10 built-in safe migration guides covering: DROP TABLE, DROP COLUMN, ADD NOT NULL COLUMN, RENAME TABLE, RENAME COLUMN, DELETE/UPDATE without WHERE, ADD COLUMN DEFAULT, CREATE/DROP INDEX
+
+### Added — V9 Dashboard
+- `migrasafe check <target> --save-history` — appends scan result to `.migrasafe-history.ndjson`
+- `migrasafe dashboard [--output file] [--open]` — generates self-contained HTML dashboard with:
+  - Summary cards: total scans, safe scans, CRITICAL/HIGH totals, avg risk score
+  - Risk Score Trend chart (last 30 scans, line chart via Chart.js)
+  - Issue Count Trend chart (bar chart)
+  - Recent scans table
+
+### Added — V10 Enterprise
+- **Policy Engine**: `.migrasafe-policy.json` — define `maxRiskScore`, `blockSeverities`, `blockedRules`, `requireApprovalAboveScore`
+- `migrasafe policy check <target>` — scan + policy evaluation in one command; exits 2 on policy violation
+- `migrasafe check --policy` — evaluate policy after any check
+- **Approval Workflow** (`migrasafe approve`):
+  - `generate <ticket-id> <target>` — scan and create an approval request in `.migrasafe-approvals/`
+  - `approve <ticket-id>` / `reject <ticket-id>` — record decision with reviewer name and notes
+  - `status <ticket-id>` — show approval status (exits 0 if approved, 1 otherwise)
+  - `list` — list all approval requests
+- **Notifications**:
+  - `migrasafe check --notify-slack <url>` — send Slack Block Kit message on unsafe result
+  - `migrasafe check --notify-webhook <url>` — POST JSON payload to any webhook endpoint
+  - Both also configurable via `.migrasaferc.json` `notifications` field
+
 ## [1.5.0] - 2026-06-28
 
 ### Added
