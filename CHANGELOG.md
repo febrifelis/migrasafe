@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-06-27
+
+### Fixed
+- Downgrade chalk from v5 to v4 — chalk 5 is ESM-only and breaks on Node 18/20 in CI
+- Remove duplicate `MYSQL_DROP_DATABASE` rule (already covered by `DROP_DATABASE` + `DROP_SCHEMA`)
+
 ## [1.0.0] - 2026-06-27
 
 ### Added
