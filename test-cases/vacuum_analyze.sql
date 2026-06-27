@@ -1,0 +1,2 @@
+VACUUM ANALYZE users;
+ANALYZE orders;

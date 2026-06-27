@@ -100,6 +100,27 @@ const RULES: Rule[] = [
     message: "DROP CONSTRAINT removes data validation — may allow dirty data into the table.",
     suggestion: "Ensure application-level validation is in place before dropping the constraint.",
   },
+  {
+    id: "DROP_SEQUENCE",
+    severity: "MEDIUM",
+    pattern: /\bDROP\s+SEQUENCE\b/i,
+    message: "DROP SEQUENCE may break auto-increment columns or application code that relies on it.",
+    suggestion: "Ensure no tables or application code reference this sequence before dropping it.",
+  },
+  {
+    id: "DROP_TYPE",
+    severity: "MEDIUM",
+    pattern: /\bDROP\s+TYPE\b/i,
+    message: "DROP TYPE may break columns or functions that use this type.",
+    suggestion: "Ensure no tables, functions, or application code reference this type before dropping it.",
+  },
+  {
+    id: "ADD_CHECK_CONSTRAINT",
+    severity: "MEDIUM",
+    pattern: /\bADD\s+CONSTRAINT\s+\S+\s+CHECK\b/i,
+    message: "ADD CHECK CONSTRAINT will fail if existing rows violate the constraint.",
+    suggestion: "Verify all existing rows satisfy the check condition before adding the constraint.",
+  },
 ];
 
 function sanitize(sql: string): string {
