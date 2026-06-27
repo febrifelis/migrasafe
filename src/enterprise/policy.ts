@@ -29,7 +29,7 @@ export function loadPolicy(cwd: string = process.cwd()): Policy | null {
     const p = path.join(cwd, name);
     if (fs.existsSync(p)) {
       try {
-        return JSON.parse(fs.readFileSync(p, "utf-8")) as Policy;
+        return JSON.parse(fs.readFileSync(p, "utf-8").replace(/^﻿/, "")) as Policy;
       } catch {
         console.error(`Warning: failed to parse policy file ${p}`);
       }

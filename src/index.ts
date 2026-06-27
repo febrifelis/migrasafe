@@ -370,8 +370,10 @@ approveCmd
 
 // ── policy ─────────────────────────────────────────────────────────────────
 
-program
-  .command("policy check <target>")
+const policyCmd = program.command("policy").description("Policy management");
+
+policyCmd
+  .command("check <target>")
   .description("Scan a target and evaluate it against .migrasafe-policy.json")
   .option("--dialect <dialect>", "SQL dialect", "auto")
   .action((target: string, options: { dialect: string }) => {
