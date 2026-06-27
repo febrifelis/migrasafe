@@ -44,7 +44,7 @@ export function appendHistory(
 export function loadHistory(cwd: string = process.cwd()): HistoryEntry[] {
   const filePath = path.join(cwd, HISTORY_FILE);
   if (!fs.existsSync(filePath)) return [];
-  const lines = fs.readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+  const lines = fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "").split("\n").filter(Boolean);
   return lines
     .map((l) => {
       try { return JSON.parse(l) as HistoryEntry; } catch { return null; }
