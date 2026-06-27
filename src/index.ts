@@ -196,6 +196,7 @@ program
     }
 
     const seenRules = new Set<string>();
+    let patternsShown = 0;
     for (const fileResult of scanResult.results) {
       for (const issue of fileResult.issues) {
         const rule = allRules.find((r) => r.message === issue.message);
@@ -204,14 +205,18 @@ program
         const pattern = getSuggestionForRule(rule.id);
         if (pattern) {
           console.log(chalk.bold(`\nSafe migration guide for ${chalk.red(rule.id)}:`) + formatPattern(pattern));
+          patternsShown++;
         }
       }
     }
 
-    if (seenRules.size === 0) {
-      console.log("\nNo safe migration patterns available for the detected issues.\n");
+    if (patternsShown === 0) {
+      const ruleIds = [...seenRules].join(", ") || "unknown";
+      console.log(`\nNo safe migration patterns available for the detected rules (${ruleIds}).`);
+      console.log(`Run: migrasafe suggest --list  to see all available patterns.\n`);
+    } else {
+      console.log();
     }
-    console.log();
   });
 
 // ── rules ──────────────────────────────────────────────────────────────────
