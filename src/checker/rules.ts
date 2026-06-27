@@ -292,13 +292,34 @@ function hasTopLevelWhere(sql: string): boolean {
   return false;
 }
 
+// Strip a leading CTE block (WITH ... AS (...) [, ...]) and return the
+// remaining DML. This lets isMissingWhere detect DELETE/UPDATE without WHERE
+// even when they are preceded by a WITH clause.
+function stripCTEPrefix(sql: string): string {
+  const trimmed = sql.trimStart();
+  if (!/^WITH\b/i.test(trimmed)) return sql;
+  let depth = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (ch === "(") { depth++; continue; }
+    if (ch === ")") { depth--; continue; }
+    // At depth 0 and past the opening "WITH": look for the DML keyword
+    if (depth === 0 && i > 0 && /^(UPDATE|DELETE|INSERT|SELECT)\b/i.test(trimmed.slice(i))) {
+      return trimmed.slice(i);
+    }
+  }
+  return sql;
+}
+
 // Returns true when the statement is DELETE/UPDATE and has no top-level WHERE
 function isMissingWhere(sql: string, keyword: "DELETE" | "UPDATE"): boolean {
-  const upper = sql.toUpperCase().trimStart();
+  // Strip CTE prefix so WITH ... UPDATE/DELETE is handled correctly
+  const dml = stripCTEPrefix(sql);
+  const upper = dml.toUpperCase().trimStart();
   if (!upper.startsWith(keyword)) return false;
   // USING / JOIN style DELETE that carries the filter in FROM — still flag it;
   // only a real WHERE clause is considered safe.
-  return !hasTopLevelWhere(sql);
+  return !hasTopLevelWhere(dml);
 }
 
 // Detect dialect from SQL content when dialect is "auto"
