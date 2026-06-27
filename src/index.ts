@@ -6,6 +6,7 @@ import { checkDirectory, checkFile, buildScanResult } from "./checker/checker";
 import { formatText, formatJson } from "./output/formatter";
 import { loadConfig } from "./config";
 import { Severity } from "./types";
+import { RULES } from "./checker/rules";
 
 const SEVERITY_ORDER: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
 
@@ -14,7 +15,7 @@ const program = new Command();
 program
   .name("migrasafe")
   .description("Detect unsafe SQL migrations before deploying to production")
-  .version("1.0.1");
+  .version("1.1.0");
 
 program
   .command("check <target>")
@@ -82,6 +83,41 @@ program
       process.exit(scanResult.safe ? 0 : 1);
     }
   );
+
+program
+  .command("rules")
+  .description("List all detection rules with their severity, category, and dialect")
+  .option("--format <format>", "Output format: text or json", "text")
+  .option("--severity <level>", "Filter by severity: CRITICAL, HIGH, MEDIUM")
+  .option("--category <cat>", "Filter by category: data-loss, breaking-change, performance, safety")
+  .option("--dialect <d>", "Filter by dialect: all, postgresql, mysql")
+  .action((options: { format: string; severity?: string; category?: string; dialect?: string }) => {
+    let rules = [...RULES];
+    if (options.severity) rules = rules.filter((r) => r.severity === options.severity!.toUpperCase());
+    if (options.category) rules = rules.filter((r) => r.category === options.category!.toLowerCase());
+    if (options.dialect)  rules = rules.filter((r) => r.dialect  === options.dialect!.toLowerCase());
+
+    if (options.format === "json") {
+      console.log(JSON.stringify(rules.map(({ id, severity, category, dialect, message, suggestion }) =>
+        ({ id, severity, category, dialect, message, suggestion })
+      ), null, 2));
+      return;
+    }
+
+    const chalk = require("chalk");
+    const severityColor = (s: string) =>
+      s === "CRITICAL" ? chalk.bgRed.white.bold(` ${s} `) :
+      s === "HIGH"     ? chalk.red.bold(s) :
+      s === "MEDIUM"   ? chalk.yellow(s) : chalk.gray(s);
+
+    console.log(`\n${chalk.bold(`${rules.length} rule(s)`)}\n`);
+    for (const rule of rules) {
+      console.log(`  ${severityColor(rule.severity).padEnd(12)}  ${chalk.bold(rule.id)}`);
+      console.log(`  ${"".padEnd(12)}  ${chalk.gray("category:")} ${rule.category}  ${chalk.gray("dialect:")} ${rule.dialect}`);
+      console.log(`  ${"".padEnd(12)}  ${rule.message}`);
+      console.log();
+    }
+  });
 
 program
   .command("install-hook")

@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
+import { Severity } from "./types";
 
 export interface MigrasafeConfig {
   ignore?: string[];
   disableRules?: string[];
-  minSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
+  minSeverity?: Severity;
+  rules?: Record<string, { severity?: Severity; disabled?: boolean }>;
 }
 
 const CONFIG_FILES = [".migrasaferc.json", ".migrasaferc", "migrasafe.config.json"];

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-06-28
+
+### Added
+- `migrasafe rules` command — list all rules with severity, category, dialect; supports `--severity`, `--category`, `--dialect`, `--format json` filters
+- Rule metadata: each rule now has `category` (data-loss, breaking-change, performance, safety) and `dialect` (all, postgresql, mysql)
+- Per-rule config overrides via `rules` field in `.migrasaferc.json` — change severity or disable individual rules
+- Inline ignore directive: `-- migrasafe-disable-next-line [RULE_ID...]` to suppress rules per-statement
+- Fix: statement line numbers now correctly skip comment-only lines
+
 ## [1.0.1] - 2026-06-27
 
 ### Fixed

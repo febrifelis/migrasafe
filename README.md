@@ -389,6 +389,27 @@ Check a SQL file or directory for unsafe migrations.
 | `--min-severity <level>` | `INFO` | Minimum severity to report: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO` |
 | `--ignore <pattern...>` | — | Skip files matching regex pattern(s) |
 
+### `migrasafe rules`
+
+List all detection rules with their severity, category, and dialect.
+
+```bash
+# List all rules
+migrasafe rules
+
+# Filter by severity
+migrasafe rules --severity CRITICAL
+
+# Filter by category: data-loss, breaking-change, performance, safety
+migrasafe rules --category performance
+
+# Filter by dialect: all, postgresql, mysql
+migrasafe rules --dialect mysql
+
+# JSON output for scripting
+migrasafe rules --format json
+```
+
 ### `migrasafe install-hook`
 
 Install a git pre-commit hook that automatically runs `migrasafe` on staged `.sql` files before each commit.
@@ -408,15 +429,20 @@ Create `.migrasaferc.json` (or `.migrasaferc` / `migrasafe.config.json`) in your
 {
   "ignore": ["seed_", "test_", "fixtures/"],
   "disableRules": ["LOCK_TABLE", "CLUSTER"],
-  "minSeverity": "HIGH"
+  "minSeverity": "HIGH",
+  "rules": {
+    "TRUNCATE": { "severity": "HIGH" },
+    "DROP_INDEX": { "disabled": true }
+  }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
 | `ignore` | `string[]` | Regex patterns — files matching any pattern are skipped |
-| `disableRules` | `string[]` | Rule IDs to disable (see rule IDs below) |
+| `disableRules` | `string[]` | Rule IDs to disable (shorthand for `rules.X.disabled: true`) |
 | `minSeverity` | `string` | Minimum severity to report (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`) |
+| `rules` | `object` | Per-rule overrides — change `severity` or set `disabled: true` |
 
 CLI flags take precedence over the config file.
 

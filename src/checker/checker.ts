@@ -165,15 +165,23 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
 
   const ignoreDirectives = parseIgnoreDirectives(content);
 
+  // Build severity overrides and per-rule disables from config.rules
+  const severityOverrides: Record<string, import("../types").Severity> = {};
+  const configRuleDisables: string[] = [];
+  for (const [id, opts] of Object.entries(config.rules ?? {})) {
+    if (opts.disabled) configRuleDisables.push(id);
+    if (opts.severity) severityOverrides[id] = opts.severity;
+  }
+
   const issues = statements.flatMap(({ statement, line }) => {
     const inlineIgnore = ignoreDirectives.get(line);
-    // inlineIgnore === [] means disable ALL rules for this statement
     if (inlineIgnore !== undefined && inlineIgnore.length === 0) return [];
     const effectiveDisable = [
       ...(config.disableRules ?? []),
+      ...configRuleDisables,
       ...(inlineIgnore ?? []),
     ];
-    return checkStatement(statement, line, fileName, effectiveDisable);
+    return checkStatement(statement, line, fileName, effectiveDisable, severityOverrides);
   });
   return { file: filePath, issues };
 }
