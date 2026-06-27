@@ -1,0 +1,2 @@
+﻿CREATE TABLE crlf_test (id SERIAL PRIMARY KEY);
+DROP TABLE crlf_test;

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS old_sessions;
+DROP INDEX IF EXISTS idx_old;

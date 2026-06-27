@@ -1,0 +1,2 @@
+CREATE TABLE test_table (id SERIAL PRIMARY KEY);
+DROP TABLE test_table

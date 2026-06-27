@@ -65,7 +65,8 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
 }
 
 export function checkFile(filePath: string): CheckResult {
-  const content = fs.readFileSync(filePath, "utf-8");
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const content = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/^﻿/, "");
   const fileName = path.basename(filePath);
   const statements = splitStatements(content);
   const issues = statements.flatMap(({ statement, line }) =>
