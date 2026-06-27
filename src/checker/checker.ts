@@ -7,11 +7,33 @@ import { MigrasafeConfig } from "../config";
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_STATEMENTS = 10_000;
 
+// Returns a map of lineNumber -> ruleIds[] to disable on that line.
+// Empty array = disable ALL rules. Specific IDs = disable only those rules.
+// Supports:
+//   -- migrasafe-disable-next-line          (disable all rules on next statement)
+//   -- migrasafe-disable-next-line RULE_ID  (disable specific rule on next statement)
+//   -- migrasafe-disable-next-line R1 R2    (disable multiple rules)
+function parseIgnoreDirectives(content: string): Map<number, string[]> {
+  const directives = new Map<number, string[]>();
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(/--\s*migrasafe-disable-next-line\s*(.*)/i);
+    if (match) {
+      const rulesPart = match[1].trim();
+      const rules = rulesPart ? rulesPart.split(/[\s,]+/).filter(Boolean) : [];
+      // line numbers are 1-based; directive on line i+1 applies to line i+2
+      directives.set(i + 2, rules);
+    }
+  }
+  return directives;
+}
+
 function splitStatements(sql: string): { statement: string; line: number }[] {
   const results: { statement: string; line: number }[] = [];
   let current = "";
   let startLine = 1;
   let currentLine = 1;
+  let firstCharLine = -1; // line of first real char added to current statement
   let inLineComment = false;
   let inBlockComment = false;
   let inSingleQuote = false;
@@ -91,16 +113,19 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
 
     if (ch === ";") {
       const trimmed = current.trim();
-      if (trimmed) results.push({ statement: trimmed, line: startLine });
+      if (trimmed) results.push({ statement: trimmed, line: firstCharLine !== -1 ? firstCharLine : startLine });
       current = "";
+      firstCharLine = -1;
       startLine = currentLine + (next === "\n" ? 1 : 0);
     } else {
+      // First real (non-comment, non-whitespace) char of this statement
+      if (firstCharLine === -1 && ch.trim() !== "") firstCharLine = currentLine;
       current += ch;
     }
   }
 
   const remaining = current.trim();
-  if (remaining) results.push({ statement: remaining, line: startLine });
+  if (remaining) results.push({ statement: remaining, line: firstCharLine !== -1 ? firstCharLine : startLine });
 
   return results;
 }
@@ -138,9 +163,18 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
     );
   }
 
-  const issues = statements.flatMap(({ statement, line }) =>
-    checkStatement(statement, line, fileName, config.disableRules)
-  );
+  const ignoreDirectives = parseIgnoreDirectives(content);
+
+  const issues = statements.flatMap(({ statement, line }) => {
+    const inlineIgnore = ignoreDirectives.get(line);
+    // inlineIgnore === [] means disable ALL rules for this statement
+    if (inlineIgnore !== undefined && inlineIgnore.length === 0) return [];
+    const effectiveDisable = [
+      ...(config.disableRules ?? []),
+      ...(inlineIgnore ?? []),
+    ];
+    return checkStatement(statement, line, fileName, effectiveDisable);
+  });
   return { file: filePath, issues };
 }
 

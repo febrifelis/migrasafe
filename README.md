@@ -353,6 +353,30 @@ $$ LANGUAGE plpgsql;
 
 ---
 
+## Inline Ignore
+
+Suppress a rule for a single statement using a comment on the line immediately above it:
+
+```sql
+-- migrasafe-disable-next-line
+DROP TABLE old_orders;
+-- ↑ skips ALL rules for the next statement
+
+-- migrasafe-disable-next-line DROP_TABLE
+DROP TABLE old_orders;
+-- ↑ skips only DROP_TABLE rule; other rules still apply
+
+-- migrasafe-disable-next-line DROP_TABLE DROP_SCHEMA
+DROP TABLE old_orders;
+-- ↑ skips multiple rules (space or comma separated)
+```
+
+The directive applies **only to the very next SQL statement**. All subsequent statements are checked normally.
+
+> Use inline ignore sparingly — only when you are certain the operation is safe in your specific context.
+
+---
+
 ## CLI Reference
 
 ### `migrasafe check <target>`
