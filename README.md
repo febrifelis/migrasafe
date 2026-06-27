@@ -71,6 +71,17 @@ migrasafe install-hook
 
 ## Example Output
 
+**Unsafe migration detected:**
+
+![migrasafe detecting unsafe migrations](./screenshots/unsafe.svg)
+
+**All migrations safe:**
+
+![migrasafe showing safe result](./screenshots/safe.svg)
+
+<details>
+<summary>Text output</summary>
+
 ```
 Scanning 3 file(s)...
 
@@ -92,6 +103,8 @@ migrations/V2__add_status.sql
 
 ✖ UNSAFE — resolve all CRITICAL/HIGH issues before deploying
 ```
+
+</details>
 
 ---
 

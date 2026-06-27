@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280" width="760" height="280">
+  <defs>
+    <style>
+      text { font-family: 'SF Mono','Cascadia Code','Fira Code','Consolas',monospace; font-size: 13px; }
+    </style>
+  </defs>
+
+  <!-- Window -->
+  <rect width="760" height="280" rx="12" fill="#1e1e2e"/>
+  <rect width="760" height="40" rx="12" fill="#181825"/>
+  <rect y="30" width="760" height="10" fill="#181825"/>
+
+  <!-- Traffic lights -->
+  <circle cx="22" cy="20" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="20" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="20" r="6" fill="#27c93f"/>
+  <text x="380" y="25" text-anchor="middle" fill="#585b70" font-size="12">zsh — migrasafe</text>
+
+  <!-- Prompt -->
+  <text y="68">
+    <tspan x="20" fill="#89b4fa">~/projects</tspan>
+    <tspan fill="#585b70"> $ </tspan>
+    <tspan fill="#cdd6f4">migrasafe check ./migrations/</tspan>
+  </text>
+
+  <!-- Scanning line -->
+  <text x="20" y="90" fill="#cdd6f4" font-weight="bold">Scanning 4 file(s)...</text>
+
+  <!-- Files checked -->
+  <text x="20" y="118" fill="#a6e3a1">✔  migrations/V1__create_users.sql</text>
+  <text x="20" y="138" fill="#a6e3a1">✔  migrations/V2__add_index.sql</text>
+  <text x="20" y="158" fill="#a6e3a1">✔  migrations/V3__add_column.sql</text>
+  <text x="20" y="178" fill="#a6e3a1">✔  migrations/V4__update_defaults.sql</text>
+
+  <!-- Summary -->
+  <text x="20" y="204" fill="#cdd6f4" font-weight="bold">── Summary ──────────────────────────────</text>
+  <text x="20" y="221" fill="#a6e3a1">  No issues found in 4 file(s)</text>
+
+  <!-- Result banner -->
+  <rect x="16" y="240" width="728" height="28" rx="4" fill="#1a3a1a"/>
+  <text x="20" y="258" fill="#a6e3a1" font-weight="bold">✔  SAFE — all migrations are ready to deploy</text>
+
+  <!-- New prompt -->
+  <text y="274">
+    <tspan x="20" fill="#89b4fa">~/projects</tspan>
+    <tspan fill="#585b70"> $ </tspan>
+    <tspan fill="#585b70">▌</tspan>
+  </text>
+</svg>

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420">
+  <defs>
+    <style>
+      text { font-family: 'SF Mono','Cascadia Code','Fira Code','Consolas',monospace; font-size: 13px; }
+    </style>
+  </defs>
+
+  <!-- Window -->
+  <rect width="760" height="420" rx="12" fill="#1e1e2e"/>
+  <rect width="760" height="40" rx="12" fill="#181825"/>
+  <rect y="30" width="760" height="10" fill="#181825"/>
+
+  <!-- Traffic lights -->
+  <circle cx="22" cy="20" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="20" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="20" r="6" fill="#27c93f"/>
+  <text x="380" y="25" text-anchor="middle" fill="#585b70" font-size="12">zsh — migrasafe</text>
+
+  <!-- Prompt -->
+  <text y="68">
+    <tspan x="20" fill="#89b4fa">~/projects</tspan>
+    <tspan fill="#585b70"> $ </tspan>
+    <tspan fill="#cdd6f4">migrasafe check ./migrations/</tspan>
+  </text>
+
+  <!-- Scanning line -->
+  <text x="20" y="90" fill="#cdd6f4" font-weight="bold">Scanning 3 file(s)...</text>
+
+  <!-- File heading -->
+  <text x="20" y="118" fill="#cdd6f4" text-decoration="underline">migrations/V2__add_status.sql</text>
+
+  <!-- Issue 1 — HIGH -->
+  <text y="140">
+    <tspan x="20" fill="#f38ba8" font-weight="bold">  ⚠ HIGH    </tspan>
+    <tspan fill="#cdd6f4">  Line 1</tspan>
+  </text>
+  <text y="157">
+    <tspan x="20" fill="#585b70">  Statement: </tspan>
+    <tspan fill="#cdd6f4">ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL</tspan>
+  </text>
+  <text y="174">
+    <tspan x="20" fill="#585b70">  Problem  : </tspan>
+    <tspan fill="#cdd6f4">ADD COLUMN NOT NULL without DEFAULT will fail on non-empty tables.</tspan>
+  </text>
+  <text y="191">
+    <tspan x="20" fill="#585b70">  Fix      : </tspan>
+    <tspan fill="#89dceb">Use 3 steps: (1) ADD COLUMN nullable, (2) backfill, (3) SET NOT NULL.</tspan>
+  </text>
+
+  <!-- Issue 2 — CRITICAL -->
+  <rect x="22" y="208" width="92" height="18" fill="#f38ba8" rx="3"/>
+  <text x="26" y="221" fill="#1e1e2e" font-weight="bold">✖ CRITICAL</text>
+  <text x="118" y="221" fill="#cdd6f4">  Line 3</text>
+
+  <text y="238">
+    <tspan x="20" fill="#585b70">  Statement: </tspan>
+    <tspan fill="#cdd6f4">DROP TABLE old_orders</tspan>
+  </text>
+  <text y="255">
+    <tspan x="20" fill="#585b70">  Problem  : </tspan>
+    <tspan fill="#cdd6f4">DROP TABLE is irreversible — all data will be permanently lost.</tspan>
+  </text>
+  <text y="272">
+    <tspan x="20" fill="#585b70">  Fix      : </tspan>
+    <tspan fill="#89dceb">Rename the table first, then drop it in a later migration.</tspan>
+  </text>
+
+  <!-- Issue 3 — MEDIUM -->
+  <text y="295">
+    <tspan x="20" fill="#f9e2af" font-weight="bold">  ● MEDIUM  </tspan>
+    <tspan fill="#cdd6f4">  Line 5</tspan>
+  </text>
+  <text y="312">
+    <tspan x="20" fill="#585b70">  Statement: </tspan>
+    <tspan fill="#cdd6f4">CREATE INDEX idx_status ON users(status)</tspan>
+  </text>
+  <text y="329">
+    <tspan x="20" fill="#585b70">  Problem  : </tspan>
+    <tspan fill="#cdd6f4">CREATE INDEX without CONCURRENTLY locks the table.</tspan>
+  </text>
+
+  <!-- Summary -->
+  <text x="20" y="355" fill="#cdd6f4" font-weight="bold">── Summary ──────────────────────────────</text>
+  <text x="20" y="372" fill="#f38ba8" font-weight="bold">  CRITICAL : 1</text>
+  <text x="20" y="389" fill="#f38ba8" font-weight="bold">  HIGH     : 1</text>
+  <text x="20" y="406" fill="#cdd6f4">  Total    : 3 issue(s) across 3 file(s)</text>
+
+  <!-- Result banner -->
+  <text x="20" y="416" fill="#f38ba8" font-weight="bold">✖ UNSAFE — resolve all CRITICAL/HIGH issues before deploying</text>
+</svg>
