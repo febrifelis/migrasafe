@@ -75,6 +75,7 @@ migrations/V2__add_status.sql
 | Rule | Severity | Why |
 |---|---|---|
 | `DROP TABLE` | CRITICAL | Irreversible — all data permanently lost |
+| `DROP SCHEMA` | CRITICAL | Irreversible — all tables, views, and data lost |
 | `DROP COLUMN` | CRITICAL | Irreversible — column data permanently lost |
 | `TRUNCATE` | CRITICAL | Deletes all rows immediately |
 | `DELETE` without `WHERE` | CRITICAL | Deletes all rows |
@@ -83,9 +84,14 @@ migrations/V2__add_status.sql
 | `RENAME COLUMN` | HIGH | Breaking change for existing queries |
 | `ADD COLUMN NOT NULL` without `DEFAULT` | HIGH | Fails on non-empty tables |
 | `ALTER COLUMN TYPE` | HIGH | May fail if data cannot be cast |
+| `ALTER COLUMN SET NOT NULL` | HIGH | Fails if any row has NULL in that column |
 | `CREATE INDEX` without `CONCURRENTLY` | MEDIUM | Locks table during index build |
 | `DROP INDEX` | MEDIUM | May degrade query performance |
 | `DROP CONSTRAINT` | MEDIUM | Removes data validation |
+| `ADD UNIQUE CONSTRAINT` | MEDIUM | Fails if duplicate values exist |
+| `ADD CHECK CONSTRAINT` | MEDIUM | Fails if existing rows violate the constraint |
+| `DROP SEQUENCE` | MEDIUM | May break auto-increment or application code |
+| `DROP TYPE` | MEDIUM | May break columns or functions using this type |
 
 ---
 

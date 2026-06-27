@@ -1,0 +1,1 @@
+DROP MATERIALIZED VIEW IF EXISTS old_monthly_sales;
