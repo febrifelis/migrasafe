@@ -95,6 +95,164 @@ migrations/V2__add_status.sql
 
 ---
 
+## How It Works
+
+### 1. Write your migration
+
+```sql
+-- migrations/V3__add_user_status.sql
+ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL;
+DROP TABLE old_sessions;
+CREATE INDEX idx_users_status ON users(status);
+```
+
+### 2. Run migrasafe before deploying
+
+```bash
+npx migrasafe check migrations/V3__add_user_status.sql
+```
+
+### 3. Read the output
+
+```
+Scanning 1 file(s)...
+
+migrations/V3__add_user_status.sql
+  ⚠ HIGH      Line 1
+  Statement: ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL
+  Problem  : ADD COLUMN NOT NULL without DEFAULT will fail on non-empty tables.
+  Fix      : Use 3 steps: (1) ADD COLUMN nullable, (2) backfill data, (3) SET NOT NULL.
+
+  ✖ CRITICAL  Line 2
+  Statement: DROP TABLE old_sessions
+  Problem  : DROP TABLE is irreversible — all data will be permanently lost.
+  Fix      : Use soft-delete or rename the table first, then drop it in a later migration.
+
+  ● MEDIUM    Line 3
+  Statement: CREATE INDEX idx_users_status ON users(status)
+  Problem  : CREATE INDEX without CONCURRENTLY locks the table and blocks reads/writes.
+  Fix      : Use CREATE INDEX CONCURRENTLY to avoid table lock in production.
+
+── Summary ──────────────────────────────
+  CRITICAL : 1
+  HIGH     : 1
+  MEDIUM   : 1
+  Total    : 3 issue(s) across 1 file(s)
+
+✖ UNSAFE — resolve all CRITICAL/HIGH issues before deploying
+```
+
+### 4. Fix the issues
+
+```sql
+-- migrations/V3__add_user_status.sql (fixed)
+
+-- ✅ Step 1: add column nullable first
+ALTER TABLE users ADD COLUMN status VARCHAR(20);
+
+-- ✅ Step 2: backfill existing rows
+UPDATE users SET status = 'active' WHERE status IS NULL;
+
+-- ✅ Step 3: now it's safe to set NOT NULL
+ALTER TABLE users ALTER COLUMN status SET NOT NULL;
+
+-- ✅ Rename instead of drop (drop in a later migration after code is deployed)
+ALTER TABLE old_sessions RENAME TO old_sessions_deprecated;
+
+-- ✅ Use CONCURRENTLY to avoid table lock
+CREATE INDEX CONCURRENTLY idx_users_status ON users(status);
+```
+
+### 5. Run again — all clear
+
+```bash
+npx migrasafe check migrations/V3__add_user_status.sql
+
+# ✔ All migrations are safe — no issues found.
+# exit code: 0
+```
+
+---
+
+## Fix Guide
+
+Common issues and how to resolve them:
+
+### ADD COLUMN NOT NULL without DEFAULT
+```sql
+-- ✖ Fails on non-empty tables
+ALTER TABLE users ADD COLUMN score INTEGER NOT NULL;
+
+-- ✅ Safe approach (3 steps)
+ALTER TABLE users ADD COLUMN score INTEGER;               -- step 1: add nullable
+UPDATE users SET score = 0 WHERE score IS NULL;          -- step 2: backfill
+ALTER TABLE users ALTER COLUMN score SET NOT NULL;       -- step 3: enforce
+```
+
+### DELETE without WHERE
+```sql
+-- ✖ Wipes entire table
+DELETE FROM sessions;
+
+-- ✅ Add a WHERE clause
+DELETE FROM sessions WHERE expires_at < now();
+
+-- ✅ Or use TRUNCATE only if intentional (migrasafe will warn)
+TRUNCATE sessions;
+```
+
+### UPDATE without WHERE
+```sql
+-- ✖ Updates every row
+UPDATE users SET verified = true;
+
+-- ✅ Add a WHERE clause
+UPDATE users SET verified = true WHERE created_at < '2024-01-01';
+```
+
+### CREATE INDEX without CONCURRENTLY
+```sql
+-- ✖ Locks the table
+CREATE INDEX idx_users_email ON users(email);
+
+-- ✅ Non-blocking
+CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
+```
+
+### ALTER COLUMN TYPE
+```sql
+-- ✖ Fails if data cannot be cast
+ALTER TABLE orders ALTER COLUMN total TYPE NUMERIC(12,2);
+
+-- ✅ Add an explicit USING clause
+ALTER TABLE orders ALTER COLUMN total TYPE NUMERIC(12,2) USING total::NUMERIC(12,2);
+```
+
+### DROP TABLE
+```sql
+-- ✖ Irreversible data loss
+DROP TABLE old_orders;
+
+-- ✅ Rename first, deploy, then drop in the next release
+ALTER TABLE old_orders RENAME TO old_orders_deprecated;
+-- (drop in a separate migration after confirming nothing references it)
+```
+
+### RENAME COLUMN
+```sql
+-- ✖ Breaking change — old column name disappears immediately
+ALTER TABLE users RENAME COLUMN username TO user_name;
+
+-- ✅ Safe approach (expand-contract pattern)
+ALTER TABLE users ADD COLUMN user_name VARCHAR(100);     -- step 1: add new
+UPDATE users SET user_name = username;                   -- step 2: copy data
+-- step 3: deploy app with new column name
+-- step 4: drop old column in next release
+ALTER TABLE users DROP COLUMN username;
+```
+
+---
+
 ## Rules
 
 ### CRITICAL — will cause data loss or server failure
