@@ -4,7 +4,7 @@
   "description": "Detect unsafe SQL migrations before deploying to production",
   "main": "dist/index.js",
   "bin": {
-    "migrasafe": "./dist/index.js"
+    "migrasafe": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -30,7 +30,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/febrifelis/migrasafe.git"
+    "url": "git+https://github.com/febrifelis/migrasafe.git"
   },
   "homepage": "https://github.com/febrifelis/migrasafe#readme",
   "bugs": {
