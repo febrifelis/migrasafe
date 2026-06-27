@@ -28,24 +28,48 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify binary exists
+        run: node dist/index.js --version
+
       - name: Check safe migration (should exit 0)
         run: node dist/index.js check test-cases/safe.sql
 
       - name: Check unsafe migration (should exit 1)
         run: |
-          node dist/index.js check test-cases/dangerous.sql && exit 1 || exit 0
+          if node dist/index.js check test-cases/dangerous.sql; then
+            echo "ERROR: dangerous.sql should have exited 1 but exited 0"
+            exit 1
+          fi
 
-      - name: Check directory scan
+      - name: Check directory scan detects issues (should exit 1)
         run: |
-          node dist/index.js check test-migrations/ && exit 1 || exit 0
+          if node dist/index.js check test-migrations/; then
+            echo "ERROR: test-migrations/ should have exited 1 but exited 0"
+            exit 1
+          fi
 
-      - name: Check JSON output
-        run: node dist/index.js check test-cases/safe.sql --format json | grep '"safe": true'
-
-      - name: Check DROP DATABASE detected
+      - name: Check JSON output format
         run: |
-          node dist/index.js check test-cases/drop_database.sql && exit 1 || exit 0
+          output=$(node dist/index.js check test-cases/safe.sql --format json)
+          echo "$output"
+          echo "$output" | grep -q '"safe": true'
 
-      - name: Check ALTER SYSTEM detected
+      - name: Check DROP DATABASE is detected
         run: |
-          node dist/index.js check test-cases/alter_system.sql && exit 1 || exit 0
+          if node dist/index.js check test-cases/drop_database.sql; then
+            echo "ERROR: drop_database.sql should have exited 1"
+            exit 1
+          fi
+
+      - name: Check ALTER SYSTEM is detected
+        run: |
+          if node dist/index.js check test-cases/alter_system.sql; then
+            echo "ERROR: alter_system.sql should have exited 1"
+            exit 1
+          fi
+
+      - name: Check --min-severity flag
+        run: node dist/index.js check test-cases/alter_set_not_null.sql --min-severity CRITICAL
+
+      - name: Check MEDIUM-only file is safe
+        run: node dist/index.js check test-cases/lock_table_detected.sql
