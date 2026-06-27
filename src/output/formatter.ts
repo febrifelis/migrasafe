@@ -345,6 +345,7 @@ export function formatJson(result: ScanResult): string {
         file: r.file,
         issueCount: r.issues.length,
         issues: r.issues.map((i) => ({
+          ruleId: i.ruleId,
           severity: i.severity,
           line: i.line,
           statement: i.statement,
