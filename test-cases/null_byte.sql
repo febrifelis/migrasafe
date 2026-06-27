@@ -1,0 +1,1 @@
+CREATE TABLE safe_table (id SERIAL PRIMARY KEY);

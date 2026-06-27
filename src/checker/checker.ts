@@ -10,6 +10,10 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
   let currentLine = 1;
   let inLineComment = false;
   let inBlockComment = false;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let dollarTag = "";
+  let inDollarQuote = false;
 
   for (let i = 0; i < sql.length; i++) {
     const ch = sql[i];
@@ -20,35 +24,70 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
       currentLine++;
     }
 
-    if (inLineComment) {
-      // skip line comment content
-      continue;
+    // --- dollar-quoted strings (PostgreSQL) ---
+    if (!inLineComment && !inBlockComment && !inSingleQuote && !inDoubleQuote) {
+      if (!inDollarQuote && ch === "$") {
+        const rest = sql.slice(i);
+        const match = rest.match(/^\$([^$]*)\$/);
+        if (match) {
+          dollarTag = match[0];
+          current += dollarTag;
+          i += dollarTag.length - 1;
+          inDollarQuote = true;
+          continue;
+        }
+      }
+      if (inDollarQuote) {
+        const rest = sql.slice(i);
+        if (rest.startsWith(dollarTag)) {
+          current += dollarTag;
+          i += dollarTag.length - 1;
+          inDollarQuote = false;
+          dollarTag = "";
+        } else {
+          current += ch;
+        }
+        continue;
+      }
     }
+
+    if (inDollarQuote) { current += ch; continue; }
+
+    // --- single-quoted strings ---
+    if (!inLineComment && !inBlockComment && !inDoubleQuote) {
+      if (ch === "'" && !inSingleQuote) { inSingleQuote = true; current += ch; continue; }
+      if (inSingleQuote) {
+        current += ch;
+        // handle escaped quote ''
+        if (ch === "'" && next === "'") { current += next; i++; }
+        else if (ch === "'") { inSingleQuote = false; }
+        continue;
+      }
+    }
+
+    // --- double-quoted identifiers ---
+    if (!inLineComment && !inBlockComment && !inSingleQuote) {
+      if (ch === '"' && !inDoubleQuote) { inDoubleQuote = true; current += ch; continue; }
+      if (inDoubleQuote) {
+        current += ch;
+        if (ch === '"') { inDoubleQuote = false; }
+        continue;
+      }
+    }
+
+    if (inLineComment) continue;
 
     if (inBlockComment) {
-      if (ch === "*" && next === "/") {
-        inBlockComment = false;
-        i++;
-      }
-      // skip block comment content
+      if (ch === "*" && next === "/") { inBlockComment = false; i++; }
       continue;
     }
 
-    if (ch === "-" && next === "-") {
-      inLineComment = true;
-      continue;
-    }
-
-    if (ch === "/" && next === "*") {
-      inBlockComment = true;
-      continue;
-    }
+    if (ch === "-" && next === "-") { inLineComment = true; continue; }
+    if (ch === "/" && next === "*") { inBlockComment = true; continue; }
 
     if (ch === ";") {
       const trimmed = current.trim();
-      if (trimmed) {
-        results.push({ statement: trimmed, line: startLine });
-      }
+      if (trimmed) results.push({ statement: trimmed, line: startLine });
       current = "";
       startLine = currentLine + (next === "\n" ? 1 : 0);
     } else {
@@ -57,9 +96,7 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
   }
 
   const remaining = current.trim();
-  if (remaining) {
-    results.push({ statement: remaining, line: startLine });
-  }
+  if (remaining) results.push({ statement: remaining, line: startLine });
 
   return results;
 }

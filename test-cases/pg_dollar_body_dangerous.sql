@@ -1,0 +1,6 @@
+CREATE OR REPLACE FUNCTION nuke_data() RETURNS void AS $$
+BEGIN
+  DROP TABLE users;
+  TRUNCATE orders;
+END;
+$$ LANGUAGE plpgsql;

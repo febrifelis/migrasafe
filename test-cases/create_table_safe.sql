@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  action VARCHAR(50) NOT NULL,
+  user_id INT REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

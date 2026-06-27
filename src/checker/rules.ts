@@ -102,10 +102,13 @@ const RULES: Rule[] = [
   },
 ];
 
-function stripStringLiterals(sql: string): string {
+function sanitize(sql: string): string {
   return sql
-    .replace(/'(?:[^'\\]|\\.)*'/g, "''")   // single-quoted strings
-    .replace(/"(?:[^"\\]|\\.)*"/g, '""');   // double-quoted strings / identifiers
+    .replace(/\$([^$]*)\$[\s\S]*?\$\1\$/g, "")        // dollar-quoted bodies
+    .replace(/--[^\n]*/g, " ")                          // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, " ")                 // block comments
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")               // single-quoted strings
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""');              // double-quoted identifiers
 }
 
 export function checkStatement(
@@ -117,7 +120,7 @@ export function checkStatement(
   const trimmed = statement.trim();
   if (!trimmed) return issues;
 
-  const sanitized = stripStringLiterals(trimmed);
+  const sanitized = sanitize(trimmed);
 
   for (const rule of RULES) {
     if (rule.pattern.test(sanitized)) {
