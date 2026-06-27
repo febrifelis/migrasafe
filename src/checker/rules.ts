@@ -10,6 +10,27 @@ interface Rule {
 
 const RULES: Rule[] = [
   {
+    id: "DROP_DATABASE",
+    severity: "CRITICAL",
+    pattern: /\bDROP\s+DATABASE\b/i,
+    message: "DROP DATABASE is irreversible — the entire database and all its data will be permanently destroyed.",
+    suggestion: "Never run DROP DATABASE in a migration file. Back up the database and confirm with your team before dropping.",
+  },
+  {
+    id: "ALTER_SYSTEM",
+    severity: "CRITICAL",
+    pattern: /\bALTER\s+SYSTEM\b/i,
+    message: "ALTER SYSTEM modifies postgresql.conf directly — a wrong value can make the server unbootable.",
+    suggestion: "Never place ALTER SYSTEM in a migration file. Apply server config changes through your infrastructure tooling.",
+  },
+  {
+    id: "DROP_OWNED",
+    severity: "CRITICAL",
+    pattern: /\bDROP\s+OWNED\s+BY\b/i,
+    message: "DROP OWNED BY drops all objects owned by a role — this can silently destroy tables, sequences, and functions.",
+    suggestion: "Audit exactly which objects the role owns before running DROP OWNED BY.",
+  },
+  {
     id: "DROP_TABLE",
     severity: "CRITICAL",
     pattern: /\bDROP\s+TABLE\b/i,

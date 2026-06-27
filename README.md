@@ -74,6 +74,9 @@ migrations/V2__add_status.sql
 
 | Rule | Severity | Why |
 |---|---|---|
+| `DROP DATABASE` | CRITICAL | Destroys the entire database and all its data |
+| `ALTER SYSTEM` | CRITICAL | Modifies server config — wrong value can crash the server |
+| `DROP OWNED BY` | CRITICAL | Silently drops all objects owned by a role |
 | `DROP TABLE` | CRITICAL | Irreversible — all data permanently lost |
 | `DROP SCHEMA` | CRITICAL | Irreversible — all tables, views, and data lost |
 | `DROP COLUMN` | CRITICAL | Irreversible — column data permanently lost |

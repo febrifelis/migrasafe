@@ -1,0 +1,2 @@
+CREATE ROLE readonly_user NOLOGIN;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;

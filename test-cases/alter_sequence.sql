@@ -1,0 +1,1 @@
+ALTER SEQUENCE order_id_seq RESTART WITH 5000;

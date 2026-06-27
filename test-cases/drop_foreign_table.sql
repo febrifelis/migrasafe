@@ -1,0 +1,1 @@
+DROP FOREIGN TABLE IF EXISTS remote_orders;
