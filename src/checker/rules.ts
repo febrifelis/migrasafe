@@ -61,7 +61,7 @@ const RULES: Rule[] = [
   {
     id: "ADD_NOT_NULL_WITHOUT_DEFAULT",
     severity: "HIGH",
-    pattern: /\bADD\s+COLUMN\s+\S+\s+\S+.*\bNOT\s+NULL\b(?![\s\S]*\bDEFAULT\b)/i,
+    pattern: /\bADD\s+COLUMN\s+\S+[\s\S]+?\bNOT\s+NULL\b(?![\s\S]*\bDEFAULT\b)/i,
     message: "ADD COLUMN NOT NULL without DEFAULT will fail on non-empty tables.",
     suggestion: "Use 3 steps: (1) ADD COLUMN nullable, (2) backfill data, (3) SET NOT NULL.",
   },
@@ -96,7 +96,9 @@ const RULES: Rule[] = [
 ];
 
 function stripStringLiterals(sql: string): string {
-  return sql.replace(/'(?:[^'\\]|\\.)*'/g, "''");
+  return sql
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")   // single-quoted strings
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""');   // double-quoted strings / identifiers
 }
 
 export function checkStatement(

@@ -1,0 +1,2 @@
+ALTER TABLE orders ADD COLUMN status VARCHAR(20) NOT NULL;
+DROP TABLE old_orders;
