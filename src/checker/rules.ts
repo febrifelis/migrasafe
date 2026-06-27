@@ -73,6 +73,13 @@ const RULES: Rule[] = [
     suggestion: "Add a USING clause or manually migrate data before changing the column type.",
   },
   {
+    id: "ALTER_COLUMN_SET_NOT_NULL",
+    severity: "HIGH",
+    pattern: /\bALTER\s+COLUMN\s+\S+\s+SET\s+NOT\s+NULL\b/i,
+    message: "ALTER COLUMN SET NOT NULL will fail if any existing rows contain NULL in that column.",
+    suggestion: "Backfill NULLs first: UPDATE table SET col = default WHERE col IS NULL, then SET NOT NULL.",
+  },
+  {
     id: "CREATE_INDEX_WITHOUT_CONCURRENTLY",
     severity: "MEDIUM",
     pattern: /\bCREATE\s+(?:UNIQUE\s+)?INDEX\b(?!\s+CONCURRENTLY)/i,

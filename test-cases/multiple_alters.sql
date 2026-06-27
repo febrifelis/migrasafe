@@ -1,0 +1,3 @@
+ALTER TABLE orders ADD COLUMN notes TEXT;
+ALTER TABLE orders ADD COLUMN priority INT NOT NULL DEFAULT 0;
+ALTER TABLE orders DROP COLUMN legacy_field;

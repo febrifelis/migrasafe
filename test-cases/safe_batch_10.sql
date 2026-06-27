@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY idx_batch_10 ON users(id);
