@@ -21,30 +21,26 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
     }
 
     if (inLineComment) {
-      current += ch;
+      // skip line comment content
       continue;
     }
 
     if (inBlockComment) {
       if (ch === "*" && next === "/") {
         inBlockComment = false;
-        current += "*/";
         i++;
-      } else {
-        current += ch;
       }
+      // skip block comment content
       continue;
     }
 
     if (ch === "-" && next === "-") {
       inLineComment = true;
-      current += ch;
       continue;
     }
 
     if (ch === "/" && next === "*") {
       inBlockComment = true;
-      current += ch;
       continue;
     }
 
