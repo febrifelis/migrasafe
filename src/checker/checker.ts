@@ -202,7 +202,16 @@ export function checkDirectory(dirPath: string, config: MigrasafeConfig = {}): C
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return sqlFiles.map((e) => checkFile(path.join(dirPath, e.name), config));
+  const results: CheckResult[] = [];
+  for (const e of sqlFiles) {
+    try {
+      results.push(checkFile(path.join(dirPath, e.name), config));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`Warning: skipped ${e.name} — ${msg}\n`);
+    }
+  }
+  return results;
 }
 
 const LOCK_ORDER: LockType[] = ["none", "row-exclusive", "share", "access-exclusive"];

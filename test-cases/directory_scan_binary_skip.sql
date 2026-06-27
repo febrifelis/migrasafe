@@ -1,0 +1,24 @@
+-- Test marker: this file is used alongside a runtime-created binary file
+-- to verify that directory scan skips binary files gracefully without
+-- crashing the scan of remaining valid SQL files.
+--
+-- Bug: checkDirectory() called checkFile() inside Array.map() — any thrown
+-- error (binary file, file too large, symlink) propagated up and aborted
+-- the entire scan, leaving valid files unchecked.
+--
+-- Fix: iterate with try-catch per file; emit stderr warning and continue.
+--
+-- Test script (run from project root):
+--   node -e "
+--     const fs = require('fs');
+--     const {checkDirectory} = require('./dist/checker/checker');
+--     fs.mkdirSync('_btest', {recursive:true});
+--     fs.writeFileSync('_btest/valid.sql', 'DROP TABLE t;');
+--     fs.writeFileSync('_btest/bin.sql', Buffer.from([83,69,76,0,42]));
+--     const r = checkDirectory('_btest', {});
+--     console.assert(r.length === 1, 'expected 1 result, got ' + r.length);
+--     fs.rmSync('_btest', {recursive:true});
+--     console.log('PASS');
+--   "
+
+DROP TABLE reference_table;
