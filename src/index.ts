@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("migrasafe")
   .description("Detect unsafe SQL migrations before deploying to production")
-  .version("1.3.0");
+  .version("1.4.0");
 
 program
   .command("check <target>")

@@ -1,6 +1,6 @@
 {
   "name": "migrasafe",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Detect unsafe SQL migrations before deploying to production",
   "main": "dist/index.js",
   "bin": {

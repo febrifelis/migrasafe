@@ -457,7 +457,7 @@ Use these in `disableRules`:
 
 ## CI Integration
 
-### GitHub Actions
+### GitHub Actions — reusable action
 
 ```yaml
 name: Check migrations
@@ -469,17 +469,91 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: febrifelis/migrasafe@v1
+        with:
+          path: ./migrations
+          dialect: postgresql
+          min-severity: HIGH
+```
+
+Outputs available after the step:
+
+| Output | Description |
+|---|---|
+| `safe` | `true` or `false` |
+| `risk-score` | 0–100 |
+| `risk-level` | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
+
+```yaml
+      - uses: febrifelis/migrasafe@v1
+        id: migrasafe
+        with:
+          path: ./migrations
+      - name: Post risk score
+        run: echo "Risk score ${{ steps.migrasafe.outputs.risk-score }}/100 (${{ steps.migrasafe.outputs.risk-level }})"
+```
+
+#### Using npx (no action required)
+
+```yaml
+      - uses: actions/checkout@v4
       - name: Check migration safety
-        run: npx migrasafe check ./migrations/
+        run: npx migrasafe check ./migrations/ --dialect postgresql
+```
+
+### Docker
+
+```bash
+# Check a local migrations folder
+docker run --rm -v $(pwd)/migrations:/migrations ghcr.io/febrifelis/migrasafe check /migrations
+
+# With options
+docker run --rm -v $(pwd):/app ghcr.io/febrifelis/migrasafe check /app/migrations --dialect postgresql --format json
+```
+
+Or build locally:
+
+```bash
+docker build -t migrasafe .
+docker run --rm -v $(pwd)/migrations:/migrations migrasafe check /migrations
 ```
 
 ### GitLab CI
 
 ```yaml
 check-migrations:
-  image: node:20
+  image: node:20-alpine
   script:
-    - npx migrasafe check ./migrations/
+    - npx migrasafe check ./migrations/ --dialect postgresql
+  only:
+    changes:
+      - migrations/**/*.sql
+```
+
+### Jenkins
+
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Check Migrations') {
+      steps {
+        sh 'npx migrasafe check ./migrations/ --dialect postgresql'
+      }
+    }
+  }
+}
+```
+
+### Azure DevOps
+
+```yaml
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+  - script: npx migrasafe check ./migrations/ --dialect postgresql
+    displayName: 'Check migration safety'
 ```
 
 ### Bitbucket Pipelines
@@ -489,6 +563,7 @@ pipelines:
   default:
     - step:
         name: Check migration safety
+        image: node:20-alpine
         script:
           - npx migrasafe check ./migrations/
 ```

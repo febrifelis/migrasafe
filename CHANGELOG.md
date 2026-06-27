@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-06-28
+
+### Added
+- `Dockerfile` — multi-stage build (node:20-alpine), produces a minimal image
+- `.dockerignore` — excludes dev files from Docker context
+- `action.yml` — reusable GitHub Action (`uses: febrifelis/migrasafe@v1`) with inputs (path, dialect, min-severity, format) and outputs (safe, risk-score, risk-level)
+- `.github/workflows/docker.yml` — auto-build and push Docker image to ghcr.io on version tags
+- README: Jenkins, Azure DevOps, and Docker examples; GitHub Action reusable usage docs
+
 ## [1.3.0] - 2026-06-28
 
 ### Added

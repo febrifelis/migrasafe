@@ -1,0 +1,72 @@
+name: 'MigraSafe'
+description: 'Detect unsafe SQL migrations before deploying to production'
+author: 'febrifelis'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  path:
+    description: 'Path to SQL file or directory to check'
+    required: false
+    default: './migrations'
+  dialect:
+    description: 'SQL dialect: postgresql, mysql, auto'
+    required: false
+    default: 'auto'
+  min-severity:
+    description: 'Minimum severity to report: CRITICAL, HIGH, MEDIUM, LOW, INFO'
+    required: false
+    default: 'HIGH'
+  format:
+    description: 'Output format: text or json'
+    required: false
+    default: 'text'
+  args:
+    description: 'Additional arguments passed to migrasafe check'
+    required: false
+    default: ''
+
+outputs:
+  safe:
+    description: 'Whether all migrations passed (true/false)'
+    value: ${{ steps.check.outputs.safe }}
+  risk-score:
+    description: 'Risk score 0–100'
+    value: ${{ steps.check.outputs.risk_score }}
+  risk-level:
+    description: 'Risk level: LOW, MEDIUM, HIGH, CRITICAL'
+    value: ${{ steps.check.outputs.risk_level }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run migrasafe
+      id: check
+      shell: bash
+      run: |
+        OUTPUT=$(npx migrasafe@latest check "${{ inputs.path }}" \
+          --dialect "${{ inputs.dialect }}" \
+          --min-severity "${{ inputs.min-severity }}" \
+          --format json \
+          ${{ inputs.args }} 2>&1) || true
+
+        echo "$OUTPUT"
+
+        SAFE=$(echo "$OUTPUT" | grep -o '"safe": *[a-z]*' | head -1 | grep -o '[a-z]*$')
+        SCORE=$(echo "$OUTPUT" | grep -o '"score": *[0-9]*' | head -1 | grep -o '[0-9]*$')
+        LEVEL=$(echo "$OUTPUT" | grep -o '"level": *"[A-Z]*"' | head -1 | grep -o '"[A-Z]*"$' | tr -d '"')
+
+        echo "safe=${SAFE:-false}" >> $GITHUB_OUTPUT
+        echo "risk_score=${SCORE:-0}" >> $GITHUB_OUTPUT
+        echo "risk_level=${LEVEL:-UNKNOWN}" >> $GITHUB_OUTPUT
+
+        if [ "$SAFE" != "true" ]; then
+          echo "::error::migrasafe: unsafe migrations detected — resolve all CRITICAL/HIGH issues before deploying"
+          exit 1
+        fi
