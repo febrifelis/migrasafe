@@ -95,6 +95,14 @@ migrations/V2__add_status.sql
 | `ADD CHECK CONSTRAINT` | MEDIUM | Fails if existing rows violate the constraint |
 | `DROP SEQUENCE` | MEDIUM | May break auto-increment or application code |
 | `DROP TYPE` | MEDIUM | May break columns or functions using this type |
+| `LOCK TABLE` | MEDIUM | Blocks all reads and writes during the lock |
+| `CLUSTER` | MEDIUM | Locks the table for the full duration of the operation |
+| `REINDEX` without `CONCURRENTLY` | MEDIUM | Locks index and blocks reads/writes |
+| `DETACH PARTITION` | MEDIUM | May break queries targeting the partition |
+| `ALTER TABLE DISABLE TRIGGER` | HIGH | Bypasses trigger-based validation — may allow dirty data |
+| `VACUUM FULL` | MEDIUM | Locks the table exclusively for the full duration |
+| `DROP DOMAIN` | MEDIUM | May break columns or functions that use this domain |
+| `DROP AGGREGATE` | MEDIUM | May break queries that use this aggregate function |
 
 ---
 

@@ -156,6 +156,85 @@ const RULES: Rule[] = [
     message: "ADD CHECK CONSTRAINT will fail if existing rows violate the constraint.",
     suggestion: "Verify all existing rows satisfy the check condition before adding the constraint.",
   },
+  {
+    id: "LOCK_TABLE",
+    severity: "MEDIUM",
+    pattern: /\bLOCK\s+TABLE\b/i,
+    message: "LOCK TABLE blocks all reads and writes for the duration of the lock.",
+    suggestion: "Minimize lock duration and run during low-traffic windows.",
+  },
+  {
+    id: "CLUSTER",
+    severity: "MEDIUM",
+    pattern: /\bCLUSTER\s+\S+\s+USING\b|\bCLUSTER\s+\S+\s*;/i,
+    message: "CLUSTER rewrites the table in index order and holds an exclusive lock throughout.",
+    suggestion: "Run CLUSTER during a maintenance window or consider pg_repack for online reordering.",
+  },
+  {
+    id: "REINDEX_WITHOUT_CONCURRENTLY",
+    severity: "MEDIUM",
+    pattern: /\bREINDEX\b(?!\s+(?:INDEX|TABLE|SCHEMA|DATABASE|SYSTEM)\s+CONCURRENTLY)/i,
+    message: "REINDEX without CONCURRENTLY locks the index and blocks reads/writes.",
+    suggestion: "Use REINDEX INDEX CONCURRENTLY to avoid locking.",
+  },
+  {
+    id: "DETACH_PARTITION",
+    severity: "MEDIUM",
+    pattern: /\bDETACH\s+PARTITION\b/i,
+    message: "DETACH PARTITION may break queries and application code targeting that partition.",
+    suggestion: "Ensure no application code directly references the partition before detaching.",
+  },
+  {
+    id: "DISABLE_TRIGGER",
+    severity: "HIGH",
+    pattern: /\bDISABLE\s+TRIGGER\b/i,
+    message: "DISABLE TRIGGER bypasses trigger-based validation — dirty data may enter the table.",
+    suggestion: "Re-enable the trigger immediately after the data operation and validate data integrity.",
+  },
+  {
+    id: "VACUUM_FULL",
+    severity: "MEDIUM",
+    pattern: /\bVACUUM\s+FULL\b/i,
+    message: "VACUUM FULL acquires an exclusive table lock for the full duration of the operation.",
+    suggestion: "Use regular VACUUM or pg_repack for online space reclamation.",
+  },
+  {
+    id: "DROP_DOMAIN",
+    severity: "MEDIUM",
+    pattern: /\bDROP\s+DOMAIN\b/i,
+    message: "DROP DOMAIN may break columns or functions that use this domain type.",
+    suggestion: "Ensure no tables or functions reference this domain before dropping it.",
+  },
+  {
+    id: "DROP_AGGREGATE",
+    severity: "MEDIUM",
+    pattern: /\bDROP\s+AGGREGATE\b/i,
+    message: "DROP AGGREGATE may break queries that use this aggregate function.",
+    suggestion: "Ensure no queries or views reference this aggregate before dropping it.",
+  },
+
+  // ── MySQL-specific rules ─────────────────────────────────────────────────
+  {
+    id: "MYSQL_DROP_DATABASE",
+    severity: "CRITICAL",
+    pattern: /\bDROP\s+(?:DATABASE|SCHEMA)\b/i,
+    message: "DROP DATABASE/SCHEMA is irreversible — all tables and data will be permanently lost.",
+    suggestion: "Back up the database and confirm with your team before dropping.",
+  },
+  {
+    id: "MYSQL_ALTER_TABLE_MODIFY_COLUMN",
+    severity: "HIGH",
+    pattern: /\bALTER\s+TABLE\s+\S+\s+MODIFY\s+(?:COLUMN\s+)?\S+/i,
+    message: "MODIFY COLUMN may fail if existing data cannot be cast to the new type (MySQL).",
+    suggestion: "Test the type change on a copy of the data first.",
+  },
+  {
+    id: "MYSQL_ALTER_TABLE_CHANGE",
+    severity: "HIGH",
+    pattern: /\bALTER\s+TABLE\s+\S+\s+CHANGE\s+(?:COLUMN\s+)?/i,
+    message: "CHANGE COLUMN renames and/or changes type — a breaking change for queries using the old name (MySQL).",
+    suggestion: "Update all application code before renaming the column.",
+  },
 ];
 
 function sanitize(sql: string): string {
@@ -170,7 +249,8 @@ function sanitize(sql: string): string {
 export function checkStatement(
   statement: string,
   lineNumber: number,
-  file: string
+  file: string,
+  disableRules: string[] = []
 ): Issue[] {
   const issues: Issue[] = [];
   const trimmed = statement.trim();
@@ -179,6 +259,7 @@ export function checkStatement(
   const sanitized = sanitize(trimmed);
 
   for (const rule of RULES) {
+    if (disableRules.includes(rule.id)) continue;
     if (rule.pattern.test(sanitized)) {
       issues.push({
         severity: rule.severity,

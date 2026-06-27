@@ -1,0 +1,3 @@
+ALTER TABLE orders DISABLE TRIGGER ALL;
+UPDATE orders SET recalculated = true;
+ALTER TABLE orders ENABLE TRIGGER ALL;

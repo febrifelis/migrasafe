@@ -1,0 +1,9 @@
+src/
+test-cases/
+test-migrations/
+.github/
+.gitattributes
+tsconfig.json
+CHANGELOG.md
+CONTRIBUTING.md
+*.jsonl

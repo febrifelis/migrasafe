@@ -2,6 +2,10 @@ import fs from "fs";
 import path from "path";
 import { CheckResult, ScanResult } from "../types";
 import { checkStatement } from "./rules";
+import { MigrasafeConfig } from "../config";
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_STATEMENTS = 10_000;
 
 function splitStatements(sql: string): { statement: string; line: number }[] {
   const results: { statement: string; line: number }[] = [];
@@ -101,24 +105,59 @@ function splitStatements(sql: string): { statement: string; line: number }[] {
   return results;
 }
 
-export function checkFile(filePath: string): CheckResult {
+export function checkFile(filePath: string, config: MigrasafeConfig = {}): CheckResult {
+  const stat = fs.statSync(filePath);
+
+  // Guard: skip symlinks
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Skipping symlink: ${filePath}`);
+  }
+
+  // Guard: file size limit
+  if (stat.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(
+      `File too large (${(stat.size / 1024 / 1024).toFixed(1)} MB > 10 MB limit): ${filePath}`
+    );
+  }
+
   const raw = fs.readFileSync(filePath, "utf-8");
+
+  // Guard: binary file detection (null bytes)
+  if (raw.includes("\0")) {
+    throw new Error(`Binary file skipped: ${filePath}`);
+  }
+
   const content = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/^﻿/, "");
   const fileName = path.basename(filePath);
   const statements = splitStatements(content);
+
+  // Guard: max statement count
+  if (statements.length > MAX_STATEMENTS) {
+    throw new Error(
+      `Too many statements (${statements.length} > ${MAX_STATEMENTS} limit): ${filePath}`
+    );
+  }
+
   const issues = statements.flatMap(({ statement, line }) =>
-    checkStatement(statement, line, fileName)
+    checkStatement(statement, line, fileName, config.disableRules)
   );
   return { file: filePath, issues };
 }
 
-export function checkDirectory(dirPath: string): CheckResult[] {
+export function checkDirectory(dirPath: string, config: MigrasafeConfig = {}): CheckResult[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const ignorePatterns = (config.ignore ?? []).map((p) => new RegExp(p));
+
   const sqlFiles = entries
-    .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(".sql"))
+    .filter((e) => {
+      if (!e.isFile() || e.isSymbolicLink()) return false;
+      if (!e.name.toLowerCase().endsWith(".sql")) return false;
+      const filePath = path.join(dirPath, e.name);
+      return !ignorePatterns.some((re) => re.test(filePath));
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return sqlFiles.map((e) => checkFile(path.join(dirPath, e.name)));
+  return sqlFiles.map((e) => checkFile(path.join(dirPath, e.name), config));
 }
 
 export function buildScanResult(results: CheckResult[]): ScanResult {
