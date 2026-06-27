@@ -95,6 +95,10 @@ const RULES: Rule[] = [
   },
 ];
 
+function stripStringLiterals(sql: string): string {
+  return sql.replace(/'(?:[^'\\]|\\.)*'/g, "''");
+}
+
 export function checkStatement(
   statement: string,
   lineNumber: number,
@@ -104,8 +108,10 @@ export function checkStatement(
   const trimmed = statement.trim();
   if (!trimmed) return issues;
 
+  const sanitized = stripStringLiterals(trimmed);
+
   for (const rule of RULES) {
-    if (rule.pattern.test(trimmed)) {
+    if (rule.pattern.test(sanitized)) {
       issues.push({
         severity: rule.severity,
         file,
