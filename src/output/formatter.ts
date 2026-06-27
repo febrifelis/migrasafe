@@ -269,10 +269,7 @@ export function formatSarif(result: ScanResult, version = "1.4.0"): string {
 
   // Build SARIF rules list from unique rule IDs in issues
   const usedRuleIds = new Set(
-    result.results.flatMap((r) => r.issues.map((i) => {
-      const rule = [...ruleMap.values()].find((ru: { message: string }) => ru.message === i.message) as { id: string } | undefined;
-      return rule?.id ?? i.severity;
-    }))
+    result.results.flatMap((r) => r.issues.map((i) => i.ruleId))
   );
 
   const sarifRules = [...ruleMap.values()]
@@ -290,8 +287,7 @@ export function formatSarif(result: ScanResult, version = "1.4.0"): string {
 
   const sarifResults = result.results.flatMap((fileResult) =>
     fileResult.issues.map((issue) => {
-      const rule = [...ruleMap.values()].find((r: { message: string }) => r.message === issue.message) as { id: string } | undefined;
-      const ruleId = rule?.id ?? issue.severity;
+      const ruleId = issue.ruleId;
       const level = issue.severity === "CRITICAL" || issue.severity === "HIGH" ? "error" : "warning";
       return {
         ruleId,
