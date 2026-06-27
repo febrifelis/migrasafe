@@ -62,6 +62,7 @@ program
     const config = loadConfig();
     if (options.ignore) config.ignore = [...(config.ignore ?? []), ...options.ignore];
     if (options.dialect) config.dialect = options.dialect as Dialect;
+    const pluginRules = loadPluginRules(config);
 
     const minSeverity = (options.minSeverity.toUpperCase() as Severity) ?? "INFO";
     const minIndex = SEVERITY_ORDER.indexOf(minSeverity);
@@ -87,7 +88,7 @@ program
       issues: r.issues.filter((i) => SEVERITY_ORDER.indexOf(i.severity) <= minIndex),
     }));
 
-    const scanResult = buildScanResult(results);
+    const scanResult = buildScanResult(results, pluginRules);
 
     // Output
     const fmt = options.format.toLowerCase();
@@ -188,7 +189,7 @@ program
     const results = fs.statSync(resolved).isDirectory()
       ? checkDirectory(resolved, config)
       : [checkFile(resolved, config)];
-    const scanResult = buildScanResult(results);
+    const scanResult = buildScanResult(results, pluginRules);
 
     if (scanResult.totalIssues === 0) {
       console.log(chalk.green("\n✔ No issues — no suggestions needed.\n"));
@@ -293,7 +294,7 @@ approveCmd
     const results = fs.statSync(resolved).isDirectory()
       ? checkDirectory(resolved, config)
       : [checkFile(resolved, config)];
-    const scanResult = buildScanResult(results);
+    const scanResult = buildScanResult(results, loadPluginRules(config));
     const filePath = generateApprovalRequest(ticketId, target, scanResult, options.by);
     console.log(`✔ Approval request generated: ${filePath}`);
     console.log(`  Risk: ${scanResult.risk.score}/100 ${scanResult.risk.level}`);
@@ -392,7 +393,7 @@ policyCmd
     const results = fs.statSync(resolved).isDirectory()
       ? checkDirectory(resolved, config)
       : [checkFile(resolved, config)];
-    const scanResult = buildScanResult(results);
+    const scanResult = buildScanResult(results, loadPluginRules(config));
 
     console.log(formatText(scanResult));
 

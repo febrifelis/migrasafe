@@ -269,7 +269,7 @@ export function computeRisk(issues: Issue[], extraRules: Rule[] = []): RiskRepor
   return { score, level, maxLock, maxRollback, maxDataLoss, hasIrreversible, hasCertainDataLoss };
 }
 
-export function buildScanResult(results: CheckResult[]): ScanResult {
+export function buildScanResult(results: CheckResult[], extraRules: Rule[] = []): ScanResult {
   const allIssues = results.flatMap((r) => r.issues);
   const criticalCount = allIssues.filter((i) => i.severity === "CRITICAL").length;
   const highCount = allIssues.filter((i) => i.severity === "HIGH").length;
@@ -282,6 +282,6 @@ export function buildScanResult(results: CheckResult[]): ScanResult {
     highCount,
     mediumCount,
     safe: criticalCount === 0 && highCount === 0,
-    risk: computeRisk(allIssues),
+    risk: computeRisk(allIssues, extraRules),
   };
 }
