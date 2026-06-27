@@ -130,7 +130,7 @@ program
       if (policy) {
         const pr = evaluatePolicy(scanResult, policy);
         console.log("\n" + formatPolicyResult(pr));
-        if (!pr.passed) process.exit(2);
+        if (!pr.passed || pr.requiresApproval) process.exit(2);
         if (pr.requiresApproval) {
           console.log("\nRun: migrasafe approve generate <ticket-id>");
         }
@@ -404,7 +404,7 @@ policyCmd
     }
     const pr = evaluatePolicy(scanResult, policy);
     console.log(formatPolicyResult(pr));
-    process.exit(pr.passed ? (scanResult.safe ? 0 : 1) : 2);
+    process.exit(pr.passed && !pr.requiresApproval ? (scanResult.safe ? 0 : 1) : 2);
   });
 
 // ── install-hook ───────────────────────────────────────────────────────────
