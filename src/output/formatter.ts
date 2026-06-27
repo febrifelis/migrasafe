@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import path from "path";
-import { ScanResult, Severity } from "../types";
+import { ScanResult, Severity, RiskReport } from "../types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SEVERITY_COLOR: Record<Severity, any> = {
@@ -18,6 +18,32 @@ const SEVERITY_ICON: Record<Severity, string> = {
   LOW: "○ LOW     ",
   INFO: "· INFO    ",
 };
+
+const LOCK_LABEL: Record<string, string> = {
+  "none":             "none",
+  "row-exclusive":    "ROW EXCLUSIVE (allows reads, blocks conflicting writes)",
+  "share":            "SHARE (blocks writes, allows reads)",
+  "access-exclusive": "ACCESS EXCLUSIVE (blocks all reads and writes)",
+};
+
+const ROLLBACK_LABEL: Record<string, string> = {
+  "easy":        "easy — can be rolled back in a transaction",
+  "hard":        "hard — requires manual steps or data restore",
+  "irreversible":"irreversible — requires backup restore",
+};
+
+const DATALOSS_LABEL: Record<string, string> = {
+  "none":    "none",
+  "possible":"possible",
+  "certain": "CERTAIN",
+};
+
+function riskLevelColor(level: RiskReport["level"]): string {
+  if (level === "CRITICAL") return chalk.bgRed.white.bold(` CRITICAL `);
+  if (level === "HIGH")     return chalk.red.bold(level);
+  if (level === "MEDIUM")   return chalk.yellow.bold(level);
+  return chalk.green(level);
+}
 
 export function formatText(result: ScanResult): string {
   const lines: string[] = [];
@@ -61,6 +87,21 @@ export function formatText(result: ScanResult): string {
   lines.push(`  Total    : ${result.totalIssues} issue(s) across ${filesScanned} file(s)`);
   lines.push("");
 
+  // Risk Report — only when there are issues
+  if (hasIssues) {
+    const r = result.risk;
+    lines.push(chalk.bold("── Risk Report ──────────────────────────"));
+    lines.push(`  Score     : ${r.score}/100  ${riskLevelColor(r.level)}`);
+    lines.push(`  Lock      : ${LOCK_LABEL[r.maxLock] ?? r.maxLock}`);
+    lines.push(`  Rollback  : ${ROLLBACK_LABEL[r.maxRollback] ?? r.maxRollback}`);
+    lines.push(`  Data loss : ${DATALOSS_LABEL[r.maxDataLoss] ?? r.maxDataLoss}`);
+    if (r.hasIrreversible || r.hasCertainDataLoss) {
+      lines.push("");
+      lines.push(chalk.red.bold("  ⚠  Take a full backup before running this migration."));
+    }
+    lines.push("");
+  }
+
   if (result.safe) {
     lines.push(chalk.green.bold("✔ SAFE — ready to deploy to production"));
   } else {
@@ -81,6 +122,7 @@ export function formatJson(result: ScanResult): string {
         medium: result.mediumCount,
         total: result.totalIssues,
       },
+      risk: result.risk,
       files: result.results.map((r) => ({
         file: r.file,
         issueCount: r.issues.length,

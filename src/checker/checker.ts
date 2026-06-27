@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { CheckResult, ScanResult } from "../types";
-import { checkStatement } from "./rules";
+import { CheckResult, ScanResult, Issue, RiskReport, LockType, RollbackDifficulty, DataLossRisk } from "../types";
+import { checkStatement, RULES } from "./rules";
 import { MigrasafeConfig } from "../config";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -202,6 +202,61 @@ export function checkDirectory(dirPath: string, config: MigrasafeConfig = {}): C
   return sqlFiles.map((e) => checkFile(path.join(dirPath, e.name), config));
 }
 
+const LOCK_ORDER: LockType[] = ["none", "row-exclusive", "share", "access-exclusive"];
+const ROLLBACK_ORDER: RollbackDifficulty[] = ["easy", "hard", "irreversible"];
+const DATALOSS_ORDER: DataLossRisk[] = ["none", "possible", "certain"];
+
+function maxOf<T>(order: T[], values: T[]): T {
+  return values.reduce((best, v) =>
+    order.indexOf(v) > order.indexOf(best) ? v : best, order[0]);
+}
+
+export function computeRisk(issues: Issue[]): RiskReport {
+  if (issues.length === 0) {
+    return { score: 0, level: "LOW", maxLock: "none" as LockType, maxRollback: "easy" as RollbackDifficulty, maxDataLoss: "none" as DataLossRisk, hasIrreversible: false, hasCertainDataLoss: false };
+  }
+
+  // Look up rule metadata for each issue
+  const ruleMap = new Map(RULES.map((r) => [r.id, r]));
+  const locks: LockType[] = [];
+  const rollbacks: RollbackDifficulty[] = [];
+  const dataLosses: DataLossRisk[] = [];
+
+  let score = 0;
+  for (const issue of issues) {
+    if (issue.severity === "CRITICAL") score += 30;
+    else if (issue.severity === "HIGH") score += 15;
+    else if (issue.severity === "MEDIUM") score += 5;
+
+    // Find the rule by matching message (issues don't carry rule id, match by message)
+    const rule = [...ruleMap.values()].find((r) => r.message === issue.message);
+    if (rule) {
+      locks.push(rule.lock);
+      rollbacks.push(rule.rollback);
+      dataLosses.push(rule.dataLoss);
+    }
+  }
+
+  score = Math.min(100, score);
+
+  const maxLock = maxOf(LOCK_ORDER, locks.length ? locks : ["none" as LockType]);
+  const maxRollback = maxOf(ROLLBACK_ORDER, rollbacks.length ? rollbacks : ["easy" as RollbackDifficulty]);
+  const maxDataLoss = maxOf(DATALOSS_ORDER, dataLosses.length ? dataLosses : ["none" as DataLossRisk]);
+  const hasIrreversible = maxRollback === "irreversible";
+  const hasCertainDataLoss = maxDataLoss === "certain";
+
+  // Minimum score bumps for critical risk properties
+  if (hasCertainDataLoss) score = Math.max(score, 60);
+  if (hasIrreversible)    score = Math.max(score, 50);
+
+  const level: RiskReport["level"] =
+    score >= 60 ? "CRITICAL" :
+    score >= 40 ? "HIGH" :
+    score >= 20 ? "MEDIUM" : "LOW";
+
+  return { score, level, maxLock, maxRollback, maxDataLoss, hasIrreversible, hasCertainDataLoss };
+}
+
 export function buildScanResult(results: CheckResult[]): ScanResult {
   const allIssues = results.flatMap((r) => r.issues);
   const criticalCount = allIssues.filter((i) => i.severity === "CRITICAL").length;
@@ -215,5 +270,6 @@ export function buildScanResult(results: CheckResult[]): ScanResult {
     highCount,
     mediumCount,
     safe: criticalCount === 0 && highCount === 0,
+    risk: computeRisk(allIssues),
   };
 }

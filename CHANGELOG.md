@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-06-28
+
+### Added
+- Risk Report section in text output (only shown when issues are found):
+  - **Score** (0–100): weighted by severity — CRITICAL +30, HIGH +15, MEDIUM +5; minimum raised for irreversible/data-loss operations
+  - **Risk level**: LOW / MEDIUM / HIGH / CRITICAL
+  - **Lock impact**: worst-case PostgreSQL lock type across all flagged statements
+  - **Rollback difficulty**: easy / hard / irreversible
+  - **Data loss risk**: none / possible / CERTAIN
+  - Backup warning when any operation is irreversible or causes certain data loss
+- Risk data included in `--format json` output (`risk` field)
+- Risk metadata on all 31 rules: `lock`, `rollback`, `dataLoss` fields
+
 ## [1.2.0] - 2026-06-28
 
 ### Added
