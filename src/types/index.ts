@@ -4,6 +4,7 @@ export type RollbackDifficulty = "easy" | "hard" | "irreversible";
 export type DataLossRisk = "none" | "possible" | "certain";
 
 export interface Issue {
+  ruleId: string;
   severity: Severity;
   file: string;
   line: number;

@@ -367,6 +367,7 @@ export function checkStatement(
     if (matched) {
       const severity = severityOverrides[rule.id] ?? rule.severity;
       issues.push({
+        ruleId: rule.id,
         severity,
         file,
         line: lineNumber,

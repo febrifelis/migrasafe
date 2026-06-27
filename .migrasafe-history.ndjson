@@ -1,1 +1,0 @@
-{"timestamp":"2026-06-27T18:33:49.856Z","version":"2.0.0","target":"test-cases/dangerous.sql","safe":false,"criticalCount":1,"highCount":1,"mediumCount":0,"totalIssues":2,"riskScore":60,"riskLevel":"CRITICAL","files":1}

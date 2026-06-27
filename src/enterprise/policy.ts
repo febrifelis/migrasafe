@@ -67,7 +67,7 @@ export function evaluatePolicy(result: ScanResult, policy: Policy): PolicyResult
     for (const blockedRuleId of policy.blockedRules) {
       // Match by checking if any issue message contains the rule ID pattern
       // (since issues carry message, not rule ID — best effort match)
-      const found = allIssues.some((i) => i.message.includes(blockedRuleId));
+      const found = allIssues.some((i) => i.ruleId === blockedRuleId);
       if (found) {
         violations.push({
           rule: `blocked-rule-${blockedRuleId}`,
