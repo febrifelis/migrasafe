@@ -215,13 +215,6 @@ const RULES: Rule[] = [
 
   // ── MySQL-specific rules ─────────────────────────────────────────────────
   {
-    id: "MYSQL_DROP_DATABASE",
-    severity: "CRITICAL",
-    pattern: /\bDROP\s+(?:DATABASE|SCHEMA)\b/i,
-    message: "DROP DATABASE/SCHEMA is irreversible — all tables and data will be permanently lost.",
-    suggestion: "Back up the database and confirm with your team before dropping.",
-  },
-  {
     id: "MYSQL_ALTER_TABLE_MODIFY_COLUMN",
     severity: "HIGH",
     pattern: /\bALTER\s+TABLE\s+\S+\s+MODIFY\s+(?:COLUMN\s+)?\S+/i,
