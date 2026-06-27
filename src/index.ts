@@ -3,7 +3,7 @@ import { Command } from "commander";
 import fs from "fs";
 import path from "path";
 import { checkDirectory, checkFile, buildScanResult } from "./checker/checker";
-import { formatText, formatJson } from "./output/formatter";
+import { formatText, formatJson, formatMarkdown, formatHtml, formatSarif } from "./output/formatter";
 import { loadConfig } from "./config";
 import { Severity } from "./types";
 import { RULES } from "./checker/rules";
@@ -16,12 +16,12 @@ const program = new Command();
 program
   .name("migrasafe")
   .description("Detect unsafe SQL migrations before deploying to production")
-  .version("1.4.0");
+  .version("1.5.0");
 
 program
   .command("check <target>")
   .description("Check a SQL file or directory of migrations")
-  .option("--format <format>", "Output format: text or json", "text")
+  .option("--format <format>", "Output format: text, json, markdown, html, sarif", "text")
   .option("--ignore <patterns...>", "Glob/regex patterns to ignore (e.g. --ignore seed_ test_)")
   .option(
     "--min-severity <level>",
@@ -77,8 +77,15 @@ program
 
       const scanResult = buildScanResult(results);
 
-      if (options.format === "json") {
+      const fmt = options.format.toLowerCase();
+      if (fmt === "json") {
         console.log(formatJson(scanResult));
+      } else if (fmt === "markdown" || fmt === "md") {
+        console.log(formatMarkdown(scanResult));
+      } else if (fmt === "html") {
+        console.log(formatHtml(scanResult));
+      } else if (fmt === "sarif") {
+        console.log(formatSarif(scanResult));
       } else {
         console.log(formatText(scanResult));
       }

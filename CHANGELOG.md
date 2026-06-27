@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-06-28
+
+### Added
+- `--format markdown` — Markdown report with summary table, risk table, and per-file issue table; ideal for GitHub PR comments via CI
+- `--format html` — Self-contained styled HTML report with risk score, color-coded severity rows, and backup warning
+- `--format sarif` — SARIF 2.1.0 output compatible with GitHub Code Scanning (`uploadSarif` action) — maps issues to rule IDs and regions
+
 ## [1.4.0] - 2026-06-28
 
 ### Added
