@@ -17,6 +17,13 @@ const RULES: Rule[] = [
     suggestion: "Use soft-delete or rename the table first, then drop it in a later migration.",
   },
   {
+    id: "DROP_SCHEMA",
+    severity: "CRITICAL",
+    pattern: /\bDROP\s+SCHEMA\b/i,
+    message: "DROP SCHEMA is irreversible — all tables, views, and data in the schema will be lost.",
+    suggestion: "Ensure all objects in the schema are migrated or backed up before dropping.",
+  },
+  {
     id: "DROP_COLUMN",
     severity: "CRITICAL",
     pattern: /\bDROP\s+COLUMN\b/i,
@@ -99,6 +106,13 @@ const RULES: Rule[] = [
     pattern: /\bDROP\s+CONSTRAINT\b/i,
     message: "DROP CONSTRAINT removes data validation — may allow dirty data into the table.",
     suggestion: "Ensure application-level validation is in place before dropping the constraint.",
+  },
+  {
+    id: "ADD_UNIQUE_CONSTRAINT",
+    severity: "MEDIUM",
+    pattern: /\bADD\s+CONSTRAINT\s+\S+\s+UNIQUE\b/i,
+    message: "ADD UNIQUE CONSTRAINT will fail if duplicate values exist in the column(s).",
+    suggestion: "Check for and remove duplicate values before adding the unique constraint.",
   },
   {
     id: "DROP_SEQUENCE",
