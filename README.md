@@ -2,45 +2,70 @@
 
 > Detect unsafe SQL migrations before deploying to production.
 
-Zero external dependencies. Single binary. Works in any CI pipeline.
+Zero runtime dependencies. Single binary. Works in any CI pipeline.
 
 [![npm version](https://img.shields.io/npm/v/migrasafe)](https://www.npmjs.com/package/migrasafe)
 [![license](https://img.shields.io/npm/l/migrasafe)](./LICENSE)
+[![CI](https://github.com/febrifelis/migrasafe/actions/workflows/ci.yml/badge.svg)](https://github.com/febrifelis/migrasafe/actions/workflows/ci.yml)
 
 ---
 
 ## The Problem
 
-Running a bad migration in production can cause data loss, table locks, or downtime — often irreversible. `migrasafe` catches these issues **before** they reach your database.
+Running a bad migration in production can cause data loss, table locks, or downtime — often irreversible.
+
+```sql
+-- This will lock your table for minutes on 50M rows
+CREATE INDEX idx_users_email ON users(email);
+
+-- This will wipe every row if you forget the WHERE
+DELETE FROM sessions;
+
+-- This will fail on non-empty tables
+ALTER TABLE orders ADD COLUMN status VARCHAR(20) NOT NULL;
+```
+
+`migrasafe` catches these issues **before** they reach your database.
 
 ---
 
 ## Install
 
 ```bash
-# Run without installing
+# Run without installing (recommended for CI)
 npx migrasafe check ./migrations/
 
-# Or install globally
+# Install globally
 npm install -g migrasafe
 ```
 
+**Requirements:** Node.js >= 18
+
 ---
 
-## Usage
+## Quick Start
 
 ```bash
 # Check a single file
 migrasafe check migration.sql
 
-# Check a directory (scans all .sql files, sorted by name)
+# Check a directory — scans all .sql files, sorted by name
 migrasafe check ./migrations/
 
-# JSON output — for CI pipelines and scripting
+# JSON output for scripts and dashboards
 migrasafe check ./migrations/ --format json
+
+# Only report CRITICAL and HIGH (ignore MEDIUM)
+migrasafe check ./migrations/ --min-severity HIGH
+
+# Skip files matching a pattern
+migrasafe check ./migrations/ --ignore seed_ --ignore test_
+
+# Install a git pre-commit hook
+migrasafe install-hook
 ```
 
-**Exit codes:** `0` = safe, `1` = unsafe or error.
+**Exit codes:** `0` = safe (no CRITICAL/HIGH), `1` = unsafe or error.
 
 ---
 
@@ -72,37 +97,139 @@ migrations/V2__add_status.sql
 
 ## Rules
 
-| Rule | Severity | Why |
+### CRITICAL — will cause data loss or server failure
+
+| Rule | Why |
+|---|---|
+| `DROP DATABASE` | Destroys the entire database and all its data permanently |
+| `ALTER SYSTEM` | Modifies `postgresql.conf` directly — wrong value can make server unbootable |
+| `DROP OWNED BY` | Silently drops all objects (tables, sequences, functions) owned by a role |
+| `DROP TABLE` | Irreversible — all table data permanently lost |
+| `DROP SCHEMA` | Irreversible — all tables, views, and data in the schema lost |
+| `DROP COLUMN` | Irreversible — all column data permanently lost |
+| `TRUNCATE` | Deletes every row immediately, no rollback in some configs |
+| `DELETE` without `WHERE` | Deletes every row in the table |
+
+### HIGH — will cause failures or breaking changes
+
+| Rule | Why |
+|---|---|
+| `UPDATE` without `WHERE` | Modifies every row in the table |
+| `RENAME TABLE` | Breaking change — all queries using the old name will fail |
+| `RENAME COLUMN` | Breaking change — all queries using the old column name will fail |
+| `ADD COLUMN NOT NULL` without `DEFAULT` | Fails immediately on non-empty tables |
+| `ALTER COLUMN TYPE` | Fails if existing data cannot be cast to the new type |
+| `ALTER COLUMN SET NOT NULL` | Fails if any existing row contains NULL |
+| `ALTER TABLE DISABLE TRIGGER` | Bypasses trigger-based validation — may allow dirty data |
+| `MODIFY COLUMN` *(MySQL)* | May fail if data cannot be cast to the new type |
+| `CHANGE COLUMN` *(MySQL)* | Renames and/or changes type — breaking change |
+
+### MEDIUM — may cause degraded performance or failures
+
+| Rule | Why |
+|---|---|
+| `CREATE INDEX` without `CONCURRENTLY` | Locks the entire table during index build |
+| `REINDEX` without `CONCURRENTLY` | Locks the index and blocks reads/writes |
+| `DROP INDEX` | May degrade query performance for queries relying on it |
+| `DROP CONSTRAINT` | Removes data validation — may allow dirty data |
+| `ADD UNIQUE CONSTRAINT` | Fails if duplicate values already exist |
+| `ADD CHECK CONSTRAINT` | Fails if existing rows violate the constraint |
+| `DROP SEQUENCE` | May break auto-increment columns or application code |
+| `DROP TYPE` | May break columns or functions using this type |
+| `DROP DOMAIN` | May break columns or functions using this domain |
+| `DROP AGGREGATE` | May break queries using this aggregate function |
+| `LOCK TABLE` | Blocks all reads and writes for the duration of the lock |
+| `CLUSTER` | Rewrites the entire table — holds exclusive lock throughout |
+| `DETACH PARTITION` | May break queries and application code targeting the partition |
+| `VACUUM FULL` | Holds an exclusive table lock for the full duration |
+
+---
+
+## What It Does NOT Flag
+
+migrasafe is designed to avoid false positives. The following patterns are safe and will not trigger any rule:
+
+```sql
+-- DELETE with WHERE — safe
+DELETE FROM sessions WHERE expires_at < now();
+
+-- UPDATE with WHERE — safe
+UPDATE users SET active = false WHERE last_login < '2020-01-01';
+
+-- CREATE INDEX CONCURRENTLY — safe, no table lock
+CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
+
+-- REINDEX CONCURRENTLY — safe
+REINDEX INDEX CONCURRENTLY idx_users_email;
+
+-- ADD COLUMN with DEFAULT — safe on PostgreSQL 11+
+ALTER TABLE users ADD COLUMN preferences JSONB DEFAULT '{}';
+
+-- Keywords inside string literals — ignored
+INSERT INTO logs (message) VALUES ('DROP TABLE attempt blocked');
+
+-- Keywords inside comments — ignored
+-- This migration does NOT drop any table
+ALTER TABLE users ADD COLUMN verified BOOLEAN DEFAULT false;
+
+-- Dollar-quoted function bodies — body content is not executed
+CREATE OR REPLACE FUNCTION cleanup() RETURNS void AS $$
+BEGIN
+  DELETE FROM temp_data; -- ignored, inside function body
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## CLI Reference
+
+### `migrasafe check <target>`
+
+Check a SQL file or directory for unsafe migrations.
+
+| Option | Default | Description |
 |---|---|---|
-| `DROP DATABASE` | CRITICAL | Destroys the entire database and all its data |
-| `ALTER SYSTEM` | CRITICAL | Modifies server config — wrong value can crash the server |
-| `DROP OWNED BY` | CRITICAL | Silently drops all objects owned by a role |
-| `DROP TABLE` | CRITICAL | Irreversible — all data permanently lost |
-| `DROP SCHEMA` | CRITICAL | Irreversible — all tables, views, and data lost |
-| `DROP COLUMN` | CRITICAL | Irreversible — column data permanently lost |
-| `TRUNCATE` | CRITICAL | Deletes all rows immediately |
-| `DELETE` without `WHERE` | CRITICAL | Deletes all rows |
-| `UPDATE` without `WHERE` | HIGH | Modifies all rows |
-| `RENAME TABLE` | HIGH | Breaking change for existing queries |
-| `RENAME COLUMN` | HIGH | Breaking change for existing queries |
-| `ADD COLUMN NOT NULL` without `DEFAULT` | HIGH | Fails on non-empty tables |
-| `ALTER COLUMN TYPE` | HIGH | May fail if data cannot be cast |
-| `ALTER COLUMN SET NOT NULL` | HIGH | Fails if any row has NULL in that column |
-| `CREATE INDEX` without `CONCURRENTLY` | MEDIUM | Locks table during index build |
-| `DROP INDEX` | MEDIUM | May degrade query performance |
-| `DROP CONSTRAINT` | MEDIUM | Removes data validation |
-| `ADD UNIQUE CONSTRAINT` | MEDIUM | Fails if duplicate values exist |
-| `ADD CHECK CONSTRAINT` | MEDIUM | Fails if existing rows violate the constraint |
-| `DROP SEQUENCE` | MEDIUM | May break auto-increment or application code |
-| `DROP TYPE` | MEDIUM | May break columns or functions using this type |
-| `LOCK TABLE` | MEDIUM | Blocks all reads and writes during the lock |
-| `CLUSTER` | MEDIUM | Locks the table for the full duration of the operation |
-| `REINDEX` without `CONCURRENTLY` | MEDIUM | Locks index and blocks reads/writes |
-| `DETACH PARTITION` | MEDIUM | May break queries targeting the partition |
-| `ALTER TABLE DISABLE TRIGGER` | HIGH | Bypasses trigger-based validation — may allow dirty data |
-| `VACUUM FULL` | MEDIUM | Locks the table exclusively for the full duration |
-| `DROP DOMAIN` | MEDIUM | May break columns or functions that use this domain |
-| `DROP AGGREGATE` | MEDIUM | May break queries that use this aggregate function |
+| `--format <text\|json>` | `text` | Output format |
+| `--min-severity <level>` | `INFO` | Minimum severity to report: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO` |
+| `--ignore <pattern...>` | — | Skip files matching regex pattern(s) |
+
+### `migrasafe install-hook`
+
+Install a git pre-commit hook that automatically runs `migrasafe` on staged `.sql` files before each commit.
+
+```bash
+migrasafe install-hook
+# ✔ migrasafe pre-commit hook installed at .git/hooks/pre-commit
+```
+
+---
+
+## Configuration File
+
+Create `.migrasaferc.json` (or `.migrasaferc` / `migrasafe.config.json`) in your project root:
+
+```json
+{
+  "ignore": ["seed_", "test_", "fixtures/"],
+  "disableRules": ["LOCK_TABLE", "CLUSTER"],
+  "minSeverity": "HIGH"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `ignore` | `string[]` | Regex patterns — files matching any pattern are skipped |
+| `disableRules` | `string[]` | Rule IDs to disable (see rule IDs below) |
+| `minSeverity` | `string` | Minimum severity to report (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`) |
+
+CLI flags take precedence over the config file.
+
+### Rule IDs
+
+Use these in `disableRules`:
+
+`DROP_DATABASE`, `ALTER_SYSTEM`, `DROP_OWNED`, `DROP_TABLE`, `DROP_SCHEMA`, `DROP_COLUMN`, `TRUNCATE`, `DELETE_WITHOUT_WHERE`, `UPDATE_WITHOUT_WHERE`, `RENAME_TABLE`, `RENAME_COLUMN`, `ADD_NOT_NULL_WITHOUT_DEFAULT`, `ALTER_COLUMN_TYPE`, `ALTER_COLUMN_SET_NOT_NULL`, `DISABLE_TRIGGER`, `MYSQL_ALTER_TABLE_MODIFY_COLUMN`, `MYSQL_ALTER_TABLE_CHANGE`, `CREATE_INDEX_WITHOUT_CONCURRENTLY`, `REINDEX_WITHOUT_CONCURRENTLY`, `DROP_INDEX`, `DROP_CONSTRAINT`, `ADD_UNIQUE_CONSTRAINT`, `ADD_CHECK_CONSTRAINT`, `DROP_SEQUENCE`, `DROP_TYPE`, `DROP_DOMAIN`, `DROP_AGGREGATE`, `LOCK_TABLE`, `CLUSTER`, `DETACH_PARTITION`, `VACUUM_FULL`
 
 ---
 
@@ -111,30 +238,59 @@ migrations/V2__add_status.sql
 ### GitHub Actions
 
 ```yaml
-- name: Check migration safety
-  run: npx migrasafe check ./migrations/
+name: Check migrations
+
+on: [push, pull_request]
+
+jobs:
+  migrate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check migration safety
+        run: npx migrasafe check ./migrations/
 ```
 
 ### GitLab CI
 
 ```yaml
 check-migrations:
+  image: node:20
   script:
     - npx migrasafe check ./migrations/
 ```
 
-### Pre-commit hook
+### Bitbucket Pipelines
+
+```yaml
+pipelines:
+  default:
+    - step:
+        name: Check migration safety
+        script:
+          - npx migrasafe check ./migrations/
+```
+
+### Pre-commit hook (manual)
 
 ```bash
 #!/bin/sh
-npx migrasafe check ./migrations/
+STAGED_SQL=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sql$')
+if [ -z "$STAGED_SQL" ]; then exit 0; fi
+echo "$STAGED_SQL" | xargs npx migrasafe check
 ```
+
+Or use the built-in installer: `migrasafe install-hook`
 
 ---
 
 ## JSON Output
 
-Use `--format json` for structured output in scripts or dashboards:
+Use `--format json` for structured output in scripts, dashboards, or custom reporters:
+
+```bash
+migrasafe check ./migrations/ --format json
+```
 
 ```json
 {
@@ -151,6 +307,13 @@ Use `--format json` for structured output in scripts or dashboards:
       "issueCount": 2,
       "issues": [
         {
+          "severity": "HIGH",
+          "line": 1,
+          "statement": "ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL",
+          "message": "ADD COLUMN NOT NULL without DEFAULT will fail on non-empty tables.",
+          "suggestion": "Use 3 steps: (1) ADD COLUMN nullable, (2) backfill data, (3) SET NOT NULL."
+        },
+        {
           "severity": "CRITICAL",
           "line": 2,
           "statement": "DROP TABLE old_orders",
@@ -165,12 +328,31 @@ Use `--format json` for structured output in scripts or dashboards:
 
 ---
 
-## What It Does NOT Flag
+## Works With
 
-- `DELETE FROM table WHERE condition` — safe, has a WHERE clause
-- `UPDATE table SET col = val WHERE condition` — safe, has a WHERE clause
-- `CREATE INDEX CONCURRENTLY` — safe, no table lock
-- Keywords inside SQL string literals or comments — ignored
+migrasafe understands standard SQL and PostgreSQL extensions out of the box:
+
+- **Migration tools:** Flyway, Liquibase, golang-migrate, Alembic, Sqitch, Prisma
+- **Databases:** PostgreSQL (full support), MySQL/MariaDB (core rules + MODIFY/CHANGE COLUMN)
+- **SQL features handled correctly:** dollar-quoted strings (`$$`), single/double-quoted literals, line comments (`--`), block comments (`/* */`), CTEs, subqueries, stored procedures, CRLF line endings, UTF-8 BOM
+
+---
+
+## Security
+
+- **No network access** — runs entirely offline
+- **Read-only** — never writes to your database or files
+- **No shell execution** — no `exec()` or `eval()`
+- **File size limit** — rejects files over 10 MB to prevent OOM
+- **Binary file guard** — skips non-text files automatically
+- **Symlink protection** — skips symlinks in directory scans
+- **Statement limit** — rejects files with more than 10,000 statements
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add rules, write tests, and submit pull requests.
 
 ---
 
