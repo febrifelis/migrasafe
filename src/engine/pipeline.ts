@@ -129,7 +129,8 @@ export function runPipeline(
   const rewrite  = analyzeRewrite(stmt);
   const objects  = analyzeAffectedObjects(stmt);
 
-  const stmtText = raw.split("\n")[0].substring(0, 120);
+  // Collapse multi-line statements to a single readable preview line
+  const stmtText = raw.replace(/\s*\n\s*/g, " ").trim().substring(0, 120);
 
   return visitorIssues.map((vi): PipelineIssue => ({
     ...vi,

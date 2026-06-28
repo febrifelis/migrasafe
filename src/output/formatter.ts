@@ -190,7 +190,8 @@ export function formatMarkdown(result: ScanResult): string {
 
     for (const fileResult of results) {
       if (fileResult.issues.length === 0) continue;
-      lines.push(`#### \`${fileResult.file}\``);
+      const relFile = path.relative(process.cwd(), fileResult.file).replace(/\\/g, "/");
+      lines.push(`#### \`${relFile}\``);
       lines.push("");
       lines.push("| Severity | Line | Statement | Problem |");
       lines.push("|---|---|---|---|");

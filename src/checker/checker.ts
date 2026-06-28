@@ -159,6 +159,22 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
     });
   });
 
+  // Warn when function/procedure bodies contain dangerous DML that cannot be scanned
+  const functionBodies = statements.filter(({ statement }) =>
+    /\b(CREATE|REPLACE)\s+(OR\s+REPLACE\s+)?FUNCTION|CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE/i.test(statement)
+  );
+  if (functionBodies.length > 0) {
+    const hasDangerousDml = functionBodies.some(({ statement }) =>
+      /\b(DELETE\s+FROM|TRUNCATE|DROP\s+TABLE|UPDATE\s+\w+\s+SET)\b/i.test(statement)
+    );
+    if (hasDangerousDml) {
+      process.stderr.write(
+        `Warning: ${path.basename(filePath)} contains stored function(s) with potentially dangerous DML ` +
+        `(DELETE/TRUNCATE/DROP/UPDATE). migrasafe cannot analyze procedural body logic — review manually.\n`
+      );
+    }
+  }
+
   return { file: filePath, issues, parsedStatements: parsed };
 }
 
