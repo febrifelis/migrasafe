@@ -10,22 +10,38 @@ export interface Issue {
   line: number;
   statement: string;
   message: string;
-  suggestion?: string | undefined;
+  suggestion?: string;
+  // V3 fields
+  confidence: number;
+  affectedObjects: string[];
+  estimatedDowntime?: string;
+  isTableRewrite: boolean;
 }
 
 export interface RiskReport {
-  score: number;              // 0–100
+  score: number;
   level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   maxLock: LockType;
   maxRollback: RollbackDifficulty;
   maxDataLoss: DataLossRisk;
   hasIrreversible: boolean;
   hasCertainDataLoss: boolean;
+  // V3 fields
+  rewriteTables: string[];
+  estimatedDowntime: string;
 }
 
 export interface CheckResult {
   file: string;
   issues: Issue[];
+}
+
+export interface DependencyWarning {
+  type: "safe-workflow" | "missing-step" | "advisory";
+  kind: string;
+  message: string;
+  lines: number[];
+  suggestion: string;
 }
 
 export interface ScanResult {
@@ -36,4 +52,7 @@ export interface ScanResult {
   mediumCount: number;
   safe: boolean;
   risk: RiskReport;
+  // V3 fields
+  dependencyWarnings: DependencyWarning[];
+  workflows: string[];
 }

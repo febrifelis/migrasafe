@@ -14,7 +14,12 @@ export interface Rule {
   lock: LockType;
   rollback: RollbackDifficulty;
   dataLoss: DataLossRisk;
+  // V3: analysis confidence 0.0–1.0; AST-enhanced rules get higher confidence
+  confidence?: number;
 }
+
+export const PLUGIN_API_VERSION = "1" as const;
+export type PluginApiVersion = typeof PLUGIN_API_VERSION;
 
 export const RULES: Rule[] = [
   // ── CRITICAL ─────────────────────────────────────────────────────────────
@@ -374,6 +379,9 @@ export function checkStatement(
         statement: trimmed.split("\n")[0].substring(0, 120),
         message: rule.message,
         suggestion: rule.suggestion,
+        confidence: 0.85,
+        affectedObjects: [],
+        isTableRewrite: false,
       });
     }
   }

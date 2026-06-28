@@ -16,8 +16,11 @@ import { generateApprovalRequest, approveRequest, rejectRequest, getApprovalStat
 import { sendSlackNotification, sendWebhookNotification } from "./enterprise/notifications";
 import { getAllPatterns, getSuggestionForRule, formatPattern } from "./ai/suggestions";
 import { loadPluginRules } from "./plugins/loader";
+import { generateCoverageReport, formatCoverageText } from "./coverage";
+import { buildCatalog, formatCatalogMarkdown, formatCatalogJson } from "./catalog";
+import { runBenchmarkSuite, formatBenchmarkText } from "./benchmark";
 
-const VERSION = "2.0.0";
+const VERSION = "3.0.0";
 const SEVERITY_ORDER: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
 
 const program = new Command();
@@ -442,6 +445,60 @@ echo "$STAGED_SQL" | xargs npx migrasafe check
     } else {
       fs.writeFileSync(hookPath, hookScript, { mode: 0o755 });
       console.log("✔ migrasafe pre-commit hook installed at .git/hooks/pre-commit");
+    }
+  });
+
+// ── coverage ───────────────────────────────────────────────────────────────
+
+program
+  .command("coverage")
+  .description("Show which SQL statement types are covered by the analysis engine")
+  .option("--format <format>", "Output format: text or json", "text")
+  .action((options: { format: string }) => {
+    const report = generateCoverageReport();
+    if (options.format === "json") {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(formatCoverageText(report));
+    }
+  });
+
+// ── catalog ────────────────────────────────────────────────────────────────
+
+program
+  .command("catalog")
+  .description("Generate public rule catalog")
+  .option("--format <format>", "Output format: markdown or json", "markdown")
+  .option("--output <file>", "Write to file instead of stdout")
+  .action((options: { format: string; output?: string }) => {
+    const config = loadConfig();
+    const pluginRules = loadPluginRules(config);
+    const entries = buildCatalog(pluginRules);
+    const output = options.format === "json"
+      ? formatCatalogJson(entries)
+      : formatCatalogMarkdown(entries);
+
+    if (options.output) {
+      const outPath = path.resolve(options.output);
+      fs.writeFileSync(outPath, output, "utf-8");
+      console.log(`✔ Catalog written to ${outPath} (${entries.length} rules)`);
+    } else {
+      console.log(output);
+    }
+  });
+
+// ── benchmark ──────────────────────────────────────────────────────────────
+
+program
+  .command("benchmark")
+  .description("Run performance benchmark suite")
+  .option("--json", "Output results as JSON")
+  .action((options: { json?: boolean }) => {
+    const suite = runBenchmarkSuite();
+    if (options.json) {
+      console.log(JSON.stringify(suite, null, 2));
+    } else {
+      console.log(formatBenchmarkText(suite));
     }
   });
 

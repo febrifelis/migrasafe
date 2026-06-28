@@ -63,11 +63,21 @@ export function formatText(result: ScanResult): string {
     for (const issue of fileResult.issues) {
       const color = SEVERITY_COLOR[issue.severity];
       const icon = SEVERITY_ICON[issue.severity];
-      lines.push(`  ${color(icon)}  Line ${issue.line}`);
+      const conf = issue.confidence !== undefined ? chalk.dim(` [${Math.round(issue.confidence * 100)}% confidence]`) : "";
+      lines.push(`  ${color(icon)}  Line ${issue.line}${conf}`);
       lines.push(`  ${chalk.dim("Statement:")} ${chalk.white(issue.statement)}`);
       lines.push(`  ${chalk.dim("Problem  :")} ${issue.message}`);
       if (issue.suggestion) {
         lines.push(`  ${chalk.dim("Fix      :")} ${chalk.cyan(issue.suggestion)}`);
+      }
+      if (issue.estimatedDowntime && issue.estimatedDowntime !== "< 1 second" && issue.estimatedDowntime !== "none (online)") {
+        lines.push(`  ${chalk.dim("Downtime :")} ${chalk.yellow(issue.estimatedDowntime)}`);
+      }
+      if (issue.isTableRewrite) {
+        lines.push(`  ${chalk.dim("Impact   :")} ${chalk.red.bold("⚠ FULL TABLE REWRITE — proportional to table size")}`);
+      }
+      if (issue.affectedObjects && issue.affectedObjects.length > 0) {
+        lines.push(`  ${chalk.dim("Affects  :")} ${issue.affectedObjects.join(", ")}`);
       }
       lines.push("");
     }
@@ -91,13 +101,32 @@ export function formatText(result: ScanResult): string {
   if (hasIssues) {
     const r = result.risk;
     lines.push(chalk.bold("── Risk Report ──────────────────────────"));
-    lines.push(`  Score     : ${r.score}/100  ${riskLevelColor(r.level)}`);
+    lines.push(`  Score     : ${r.score}/100   ${riskLevelColor(r.level)}`);
     lines.push(`  Lock      : ${LOCK_LABEL[r.maxLock] ?? r.maxLock}`);
     lines.push(`  Rollback  : ${ROLLBACK_LABEL[r.maxRollback] ?? r.maxRollback}`);
     lines.push(`  Data loss : ${DATALOSS_LABEL[r.maxDataLoss] ?? r.maxDataLoss}`);
+    if (r.estimatedDowntime && r.estimatedDowntime !== "none (online)" && r.estimatedDowntime !== "< 1 second") {
+      lines.push(`  Downtime  : ${chalk.yellow(r.estimatedDowntime)}`);
+    }
+    if (r.rewriteTables && r.rewriteTables.length > 0) {
+      lines.push(`  Rewrites  : ${chalk.red(r.rewriteTables.join(", "))} (full table rewrite)`);
+    }
     if (r.hasIrreversible || r.hasCertainDataLoss) {
       lines.push("");
       lines.push(chalk.red.bold("  ⚠  Take a full backup before running this migration."));
+    }
+    lines.push("");
+  }
+
+  // V3: Dependency warnings
+  if (result.dependencyWarnings && result.dependencyWarnings.length > 0) {
+    lines.push(chalk.bold("── Dependency Analysis ──────────────────"));
+    for (const w of result.dependencyWarnings) {
+      const icon = w.type === "safe-workflow" ? chalk.green("✔") : w.type === "missing-step" ? chalk.yellow("⚠") : chalk.blue("ℹ");
+      lines.push(`  ${icon} ${w.message}`);
+      if (w.suggestion && w.type !== "safe-workflow") {
+        lines.push(`    ${chalk.dim("→")} ${chalk.cyan(w.suggestion)}`);
+      }
     }
     lines.push("");
   }
@@ -337,16 +366,22 @@ export function formatJson(result: ScanResult): string {
         total: result.totalIssues,
       },
       risk: result.risk,
+      dependencyWarnings: result.dependencyWarnings ?? [],
+      workflows: result.workflows ?? [],
       files: result.results.map((r) => ({
         file: r.file,
         issueCount: r.issues.length,
         issues: r.issues.map((i) => ({
           ruleId: i.ruleId,
           severity: i.severity,
+          confidence: i.confidence,
           line: i.line,
           statement: i.statement,
           message: i.message,
           suggestion: i.suggestion,
+          estimatedDowntime: i.estimatedDowntime,
+          isTableRewrite: i.isTableRewrite,
+          affectedObjects: i.affectedObjects,
         })),
       })),
     },
