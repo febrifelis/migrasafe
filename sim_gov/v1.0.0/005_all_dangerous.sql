@@ -1,0 +1,104 @@
+-- All dangerous patterns in one file — comprehensive danger check
+
+-- CRITICAL: DROP TABLE
+DROP TABLE IF EXISTS old_citizen_records;
+
+-- CRITICAL: TRUNCATE
+TRUNCATE TABLE tmp_migration_batch;
+
+-- HIGH: ALTER COLUMN TYPE (rewrite)
+ALTER TABLE citizens ALTER COLUMN id TYPE BIGINT;
+
+-- HIGH: ADD NOT NULL without DEFAULT
+ALTER TABLE citizens ADD COLUMN tax_id VARCHAR(20) NOT NULL;
+
+-- HIGH: volatile DEFAULT
+ALTER TABLE citizens ADD COLUMN session_token UUID DEFAULT gen_random_uuid();
+
+-- HIGH: ADD PRIMARY KEY (no USING INDEX)
+ALTER TABLE audit_events ADD PRIMARY KEY (id);
+
+-- HIGH: ADD FOREIGN KEY (no NOT VALID)
+ALTER TABLE audit_events ADD FOREIGN KEY (user_id) REFERENCES citizens(id);
+
+-- HIGH: ADD UNIQUE
+ALTER TABLE citizens ADD UNIQUE (national_id);
+
+-- HIGH: RENAME TABLE
+ALTER TABLE old_citizen_export RENAME TO old_citizen_export_deprecated;
+
+-- HIGH: RENAME COLUMN
+ALTER TABLE citizens RENAME COLUMN full_name TO legal_name;
+
+-- HIGH: DROP COLUMN
+ALTER TABLE citizens DROP COLUMN middle_name;
+
+-- HIGH: VACUUM FULL
+VACUUM FULL citizens;
+
+-- HIGH: CLUSTER
+CLUSTER citizens USING idx_citizens_national_id;
+
+-- HIGH: REINDEX SCHEMA
+REINDEX SCHEMA public;
+
+-- HIGH: REFRESH MATERIALIZED VIEW (no CONCURRENTLY)
+REFRESH MATERIALIZED VIEW verified_citizens_mv;
+
+-- HIGH: SET UNLOGGED
+ALTER TABLE audit_events SET UNLOGGED;
+
+-- HIGH: LOCK TABLE
+LOCK TABLE citizens IN ACCESS EXCLUSIVE MODE;
+
+-- HIGH: SET lock_timeout = 0
+SET lock_timeout = 0;
+
+-- HIGH: ALTER SYSTEM SET
+ALTER SYSTEM SET max_connections = 500;
+
+-- MEDIUM: ALTER SYSTEM RESET
+ALTER SYSTEM RESET max_connections;
+
+-- MEDIUM: DETACH PARTITION CONCURRENTLY
+ALTER TABLE audit_events DETACH PARTITION audit_events_2022 CONCURRENTLY;
+
+-- MEDIUM: ATTACH PARTITION
+ALTER TABLE audit_events ATTACH PARTITION audit_events_2023
+    FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+
+-- HIGH: DETACH PARTITION (no CONCURRENTLY)
+ALTER TABLE audit_events DETACH PARTITION audit_events_2020;
+
+-- MEDIUM: ALTER TYPE ADD VALUE
+ALTER TYPE citizen_status ADD VALUE 'PENDING_REVIEW';
+
+-- MEDIUM: CREATE OR REPLACE VIEW
+CREATE OR REPLACE VIEW verified_citizens AS SELECT * FROM citizens WHERE is_verified = TRUE;
+
+-- HIGH: DROP VIEW
+DROP VIEW IF EXISTS legacy_citizen_view;
+
+-- HIGH: DROP TRIGGER
+DROP TRIGGER IF EXISTS trg_citizen_audit ON citizens;
+
+-- HIGH: RENAME SCHEMA
+ALTER SCHEMA old_api RENAME TO deprecated_api;
+
+-- HIGH: RENAME TYPE
+ALTER TYPE citizen_status RENAME TO citizen_verification_status;
+
+-- HIGH: RENAME TYPE VALUE
+ALTER TYPE citizen_status RENAME VALUE 'PENDING' TO 'IN_REVIEW';
+
+-- MEDIUM: ALTER EXTENSION UPDATE
+ALTER EXTENSION postgis UPDATE TO '3.4.0';
+
+-- HIGH: ALTER SEQUENCE RESTART
+ALTER SEQUENCE citizens_id_seq RESTART WITH 1;
+
+-- HIGH: ALTER SEQUENCE CYCLE
+ALTER SEQUENCE citizens_id_seq CYCLE;
+
+-- HIGH: ALTER TABLE SET TABLESPACE
+ALTER TABLE citizens SET TABLESPACE new_tbs;
