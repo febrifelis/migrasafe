@@ -229,7 +229,6 @@ program
 
     const config = loadConfig();
     const pluginRules = loadPluginRules(config);
-    const allRules = [...RULES, ...pluginRules];
     const results = fs.statSync(resolved).isDirectory()
       ? checkDirectory(resolved, config)
       : [checkFile(resolved, config)];
@@ -244,12 +243,11 @@ program
     let patternsShown = 0;
     for (const fileResult of scanResult.results) {
       for (const issue of fileResult.issues) {
-        const rule = allRules.find((r) => r.message === issue.message);
-        if (!rule || seenRules.has(rule.id)) continue;
-        seenRules.add(rule.id);
-        const pattern = getSuggestionForRule(rule.id);
+        if (!issue.ruleId || seenRules.has(issue.ruleId)) continue;
+        seenRules.add(issue.ruleId);
+        const pattern = getSuggestionForRule(issue.ruleId);
         if (pattern) {
-          console.log(chalk.bold(`\nSafe migration guide for ${chalk.red(rule.id)}:`) + formatPattern(pattern));
+          console.log(chalk.bold(`\nSafe migration guide for ${chalk.red(issue.ruleId)}:`) + formatPattern(pattern));
           patternsShown++;
         }
       }

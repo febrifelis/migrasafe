@@ -45,7 +45,7 @@ COMMENT ON COLUMN users.legacy_field IS 'deprecated — remove after 2026-08-01'
 ALTER TABLE users DROP COLUMN legacy_field;`,
   },
   {
-    ruleId: "ADD_NOT_NULL_COLUMN",
+    ruleId: "ADD_NOT_NULL_WITHOUT_DEFAULT",
     title: "Add a NOT NULL column to a large table",
     risk: "PostgreSQL rewrites the whole table and holds an ACCESS EXCLUSIVE lock for the duration.",
     safeApproach: [
