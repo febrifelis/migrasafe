@@ -41,13 +41,22 @@ export function appendHistory(
   fs.appendFileSync(filePath, JSON.stringify(entry) + "\n", "utf-8");
 }
 
+const HISTORY_MAX_BYTES = 50 * 1024 * 1024; // 50 MB guard
+const HISTORY_MAX_ENTRIES = 10_000;
+
 export function loadHistory(cwd: string = process.cwd()): HistoryEntry[] {
   const filePath = path.join(cwd, HISTORY_FILE);
   if (!fs.existsSync(filePath)) return [];
+  const stat = fs.statSync(filePath);
+  if (stat.size > HISTORY_MAX_BYTES) {
+    process.stderr.write(`Warning: history file exceeds 50 MB — reading last ${HISTORY_MAX_ENTRIES} entries only\n`);
+  }
   const lines = fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "").split("\n").filter(Boolean);
-  return lines
+  const entries = lines
     .map((l) => {
       try { return JSON.parse(l) as HistoryEntry; } catch { return null; }
     })
     .filter((e): e is HistoryEntry => e !== null);
+  // Return only the most recent entries to avoid OOM on very large history
+  return entries.length > HISTORY_MAX_ENTRIES ? entries.slice(-HISTORY_MAX_ENTRIES) : entries;
 }

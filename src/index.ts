@@ -23,6 +23,31 @@ import { runBenchmarkSuite, formatBenchmarkText } from "./benchmark";
 const VERSION = "3.0.0";
 const SEVERITY_ORDER: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
 
+function resolveOutputPath(output: string): string {
+  const resolved = path.resolve(output);
+  const cwd = process.cwd();
+  const rel = path.relative(cwd, resolved);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    console.error(`Error: --output path must be inside the current directory (got: ${output})`);
+    process.exit(1);
+  }
+  return resolved;
+}
+
+function validateByName(name: string): void {
+  if (!/^[\w\-\.@ ]{1,128}$/.test(name)) {
+    console.error(`Error: --by value contains invalid characters (max 128 chars, allowed: letters digits - . @ space)`);
+    process.exit(1);
+  }
+}
+
+function validateNotes(notes: string): void {
+  if (notes.length > 4096) {
+    console.error(`Error: --notes must be 4096 characters or fewer (got ${notes.length})`);
+    process.exit(1);
+  }
+}
+
 const program = new Command();
 
 program
@@ -276,7 +301,7 @@ program
   .action((options: { output: string; open?: boolean }) => {
     const history = loadHistory();
     const html = generateDashboard(history);
-    const outPath = path.resolve(options.output);
+    const outPath = resolveOutputPath(options.output);
     fs.writeFileSync(outPath, html, "utf-8");
     console.log(`✔ Dashboard written to ${outPath}`);
     if (options.open) {
@@ -300,6 +325,7 @@ approveCmd
   .description("Generate an approval request for a migration (scans the target first)")
   .option("--by <name>", "Requester name or ID", os.userInfo().username)
   .action(async (ticketId: string, target: string, options: { by: string }) => {
+    validateByName(options.by);
     const resolved = path.resolve(target);
     if (!fs.existsSync(resolved)) {
       console.error(`Error: path not found — ${resolved}`);
@@ -324,6 +350,8 @@ approveCmd
   .option("--by <name>", "Approver name or ID", os.userInfo().username)
   .option("--notes <text>", "Optional approval notes", "")
   .action((ticketId: string, options: { by: string; notes: string }) => {
+    validateByName(options.by);
+    validateNotes(options.notes);
     try {
       approveRequest(ticketId, options.by, options.notes);
       console.log(`✔ Approval request ${ticketId} approved by ${options.by}`);
@@ -339,6 +367,8 @@ approveCmd
   .option("--by <name>", "Rejector name or ID", os.userInfo().username)
   .option("--notes <text>", "Rejection reason", "")
   .action((ticketId: string, options: { by: string; notes: string }) => {
+    validateByName(options.by);
+    validateNotes(options.notes);
     try {
       rejectRequest(ticketId, options.by, options.notes);
       console.log(`✖ Approval request ${ticketId} rejected by ${options.by}`);
@@ -492,7 +522,7 @@ program
       : formatCatalogMarkdown(entries);
 
     if (options.output) {
-      const outPath = path.resolve(options.output);
+      const outPath = resolveOutputPath(options.output);
       fs.writeFileSync(outPath, output, "utf-8");
       console.log(`✔ Catalog written to ${outPath} (${entries.length} rules)`);
     } else {

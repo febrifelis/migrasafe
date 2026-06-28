@@ -177,6 +177,10 @@ export function checkDirectory(dirPath: string, config: MigrasafeConfig = {}): C
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  if (sqlFiles.length === 0) {
+    process.stderr.write(`Warning: no .sql files found in ${dirPath}\n`);
+  }
+
   const results: CheckResult[] = [];
   for (const e of sqlFiles) {
     try {

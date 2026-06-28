@@ -76,7 +76,12 @@ export function approveRequest(
   if (!fs.existsSync(filePath)) {
     throw new Error(`Approval request not found: ${ticketId}`);
   }
-  const req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
+  let req: ApprovalRequest;
+  try {
+    req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
+  } catch {
+    throw new Error(`Approval request file is corrupt: ${ticketId}`);
+  }
   if (req.status !== "pending") {
     throw new Error(`Approval request ${ticketId} is already ${req.status}`);
   }
@@ -98,7 +103,12 @@ export function rejectRequest(
   if (!fs.existsSync(filePath)) {
     throw new Error(`Approval request not found: ${ticketId}`);
   }
-  const req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
+  let req: ApprovalRequest;
+  try {
+    req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
+  } catch {
+    throw new Error(`Approval request file is corrupt: ${ticketId}`);
+  }
   req.status = "rejected";
   req.approvedBy = rejectedBy;
   req.approvedAt = new Date().toISOString();
@@ -118,6 +128,13 @@ export function listApprovals(cwd: string = process.cwd()): ApprovalRequest[] {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8")) as ApprovalRequest)
+    .flatMap((f) => {
+      try {
+        return [JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8").replace(/^﻿/, "")) as ApprovalRequest];
+      } catch {
+        process.stderr.write(`Warning: skipped corrupt approval file: ${f}\n`);
+        return [];
+      }
+    })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

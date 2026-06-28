@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { ScanResult } from "../types";
+import { ScanResult, Severity } from "../types";
+
+const VALID_SEVERITIES = new Set<string>(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]);
 
 export interface Policy {
   maxRiskScore?: number;
@@ -51,11 +53,16 @@ export function evaluatePolicy(result: ScanResult, policy: Policy): PolicyResult
 
   if (policy.blockSeverities && policy.blockSeverities.length > 0) {
     for (const sev of policy.blockSeverities) {
-      const count = result.results.flatMap((r) => r.issues).filter((i) => i.severity === sev.toUpperCase()).length;
+      const normalized = sev.toUpperCase();
+      if (!VALID_SEVERITIES.has(normalized)) {
+        console.error(`Warning: policy blockSeverities contains unknown value "${sev}" — skipped`);
+        continue;
+      }
+      const count = result.results.flatMap((r) => r.issues).filter((i) => i.severity === (normalized as Severity)).length;
       if (count > 0) {
         violations.push({
-          rule: `block-severity-${sev}`,
-          message: `Policy blocks ${sev} severity issues (${count} found)`,
+          rule: `block-severity-${normalized}`,
+          message: `Policy blocks ${normalized} severity issues (${count} found)`,
           fatal: true,
         });
       }
