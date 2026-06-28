@@ -23,10 +23,14 @@ registerVisitor({
   visit({ ast }) {
     if (ast.isConcurrent) return [];
     const target = ast.indexName ?? ast.table ?? "index";
+    // REINDEX SCHEMA/DATABASE blocks every table in scope serially — worse than single-table
+    const largeScope = ["SCHEMA", "DATABASE", "SYSTEM"].includes(ast.reindexScope ?? "");
+    const severity = largeScope ? "HIGH" : "MEDIUM";
+    const scopeNote = largeScope ? ` Scope is ${ast.reindexScope} — locks every table serially.` : "";
     return [{
       ruleId: "REINDEX_WITHOUT_CONCURRENTLY",
-      severity: "MEDIUM",
-      message: `REINDEX ${target} without CONCURRENTLY holds an exclusive lock — reads and writes on indexed table are blocked.`,
+      severity,
+      message: `REINDEX ${target} without CONCURRENTLY holds an exclusive lock — reads and writes on indexed table are blocked.${scopeNote}`,
       suggestion: "Use REINDEX CONCURRENTLY (PostgreSQL 12+) to rebuild the index without blocking.",
       confidence: ast.confidence,
     }];

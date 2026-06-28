@@ -337,6 +337,7 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
   // Scan for NOT NULL and DEFAULT flags
   let hasNotNull = false;
   let hasDefault = false;
+  let hasVolatileDefault = false;
   const typeTokens: string[] = [];
   let depth = 0;
   let pastType = false;
@@ -358,9 +359,12 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
       }
       if (t.value === "NULL") { ts.next(); pastType = true; continue; }
       if (t.value === "DEFAULT") { hasDefault = true; pastType = true; ts.next();
-        // consume the default expression
+        // consume the default expression; detect volatile function calls via '('
+        // stop at depth-0 constraint keywords (NOT NULL, UNIQUE, PRIMARY, etc.)
+        const CONSTRAINT_KWS = new Set(["NOT","NULL","UNIQUE","PRIMARY","REFERENCES","CHECK","GENERATED","CONSTRAINT"]);
         while (!ts.is("eof") && !ts.is("semi") && !(ts.is("comma") && depth === 0)) {
-          if (ts.is("lparen")) depth++;
+          if (depth === 0 && ts.peek().kind === "kw" && CONSTRAINT_KWS.has(ts.peek().value)) break;
+          if (ts.is("lparen")) { hasVolatileDefault = true; depth++; }
           if (ts.is("rparen") && depth === 0) break;
           if (ts.is("rparen")) depth--;
           ts.next();
@@ -381,6 +385,7 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
     dataType: typeTokens.join(" ").replace(/\s+/g, " ").trim(),
     nullable: !hasNotNull,
     hasDefault,
+    hasVolatileDefault,
   };
   r.confidence = 0.9;
   return r;
@@ -431,6 +436,8 @@ function parseAlterColumn(ts: TokenStream, r: ParsedStatement): ParsedStatement 
 
   if (action.value === "TYPE") {
     r.kind = "alter_alter_column_type"; r.confidence = 0.95;
+    r.newType = ts.readIdent();
+    r.hasUsing = ts.hasKwAhead("USING");
   } else if (action.value === "SET") {
     if (ts.eatSeq("NOT", "NULL")) {
       r.kind = "alter_set_not_null"; r.confidence = 0.95;
@@ -498,7 +505,10 @@ function parseReindex(ts: TokenStream, r: ParsedStatement): ParsedStatement {
   r.kind = "reindex";
   if (ts.is("lparen")) { ts.skipParens(); r.isConcurrent = true; }
   const obj = ts.peek();
-  if (obj.kind === "kw" && ["INDEX","TABLE","SCHEMA","DATABASE","SYSTEM"].includes(obj.value)) ts.next();
+  if (obj.kind === "kw" && ["INDEX","TABLE","SCHEMA","DATABASE","SYSTEM"].includes(obj.value)) {
+    r.reindexScope = obj.value;
+    ts.next();
+  }
   r.isConcurrent = r.isConcurrent || ts.eatKw("CONCURRENTLY");
   r.table = ts.readQualifiedIdent();
   r.confidence = 0.9;

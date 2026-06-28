@@ -53,12 +53,15 @@ registerVisitor({
   description: "Detects DROP INDEX which may degrade query performance",
   kinds: ["drop_index"],
   visit({ ast }) {
+    // DROP INDEX CONCURRENTLY is non-blocking — only the performance impact remains,
+    // which is below the threshold for flagging (index name often implies it's obsolete).
+    if (ast.isConcurrent) return [];
     const idx = ast.indexName ? ` ${ast.indexName}` : "";
     return [{
       ruleId: "DROP_INDEX",
       severity: "MEDIUM",
       message: `DROP INDEX${idx} removes a query optimization — affected queries may degrade significantly.`,
-      suggestion: "Verify no critical queries rely on this index. Use EXPLAIN ANALYZE to confirm before dropping.",
+      suggestion: "Verify no critical queries rely on this index. Use EXPLAIN ANALYZE to confirm before dropping. Use DROP INDEX CONCURRENTLY to avoid a table lock.",
       confidence: ast.confidence,
     }];
   },

@@ -22,6 +22,7 @@ export interface ColumnDef {
   nullable: boolean;
   hasDefault: boolean;
   defaultExpr?: string;
+  hasVolatileDefault?: boolean;
 }
 
 export interface ParsedStatement {
@@ -30,6 +31,9 @@ export interface ParsedStatement {
   tables: string[];
   column?: string;
   newName?: string;
+  newType?: string;
+  hasUsing?: boolean;
+  reindexScope?: string;
   columnDef?: ColumnDef;
   indexName?: string;
   constraintName?: string;

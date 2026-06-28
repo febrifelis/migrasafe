@@ -1,16 +1,53 @@
 import { registerVisitor } from "../visitor";
 
+// PostgreSQL performs these type changes as metadata-only (catalog-only) — no table rewrite.
+const PG_CATALOG_ONLY_TYPES = new Set(["TEXT", "CHARACTER VARYING", "VARCHAR"]);
+
 registerVisitor({
   id: "alter-column-type-visitor",
   description: "Detects ALTER COLUMN TYPE which causes a full table rewrite",
   kinds: ["alter_alter_column_type"],
-  visit({ ast }) {
+  visit({ ast, config }) {
     const col = ast.column ? `${ast.table}.${ast.column}` : ast.table ?? "column";
+    const newType = (ast.newType ?? "").toUpperCase();
+    const dialect = config.dialect ?? "auto";
+
+    // VARCHAR/CHAR → TEXT in PostgreSQL is a catalog-only operation (no table rewrite).
+    // Only skip if there's no USING clause (which would imply a non-trivial cast).
+    if (
+      (dialect === "postgresql" || dialect === "auto") &&
+      PG_CATALOG_ONLY_TYPES.has(newType) &&
+      !ast.hasUsing
+    ) {
+      return [];
+    }
+
     return [{
       ruleId: "ALTER_COLUMN_TYPE",
       severity: "HIGH",
       message: `ALTER COLUMN TYPE on ${col} rewrites the entire table — long lock, proportional to table size.`,
       suggestion: "Add a new column with the new type, backfill data, update application references, then drop the old column.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
+  id: "alter-add-column-volatile-default-visitor",
+  description: "Detects ADD COLUMN NOT NULL with a volatile DEFAULT — causes table rewrite in PostgreSQL < 14",
+  kinds: ["alter_add_column"],
+  visit({ ast, config }) {
+    const def = ast.columnDef;
+    if (!def || def.nullable || !def.hasDefault || !def.hasVolatileDefault) return [];
+    const dialect = config.dialect ?? "auto";
+    if (dialect === "mysql") return [];
+    const col = ast.column ?? def.name ?? "column";
+    const table = ast.table ?? "table";
+    return [{
+      ruleId: "ALTER_COLUMN_TYPE",
+      severity: "HIGH",
+      message: `ADD COLUMN ${table}.${col} with a volatile DEFAULT and NOT NULL rewrites the entire table in PostgreSQL < 14.`,
+      suggestion: "On PostgreSQL 14+: this is safe (instant). On PG 11–13: add as nullable first, backfill, then SET NOT NULL separately.",
       confidence: ast.confidence,
     }];
   },
