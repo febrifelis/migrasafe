@@ -213,6 +213,9 @@ export function formatMarkdown(result: ScanResult): string {
 
 // ── HTML ──────────────────────────────────────────────────────────────────
 
+const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escHtml(s: string): string { return s.replace(/[&<>"']/g, (c) => HTML_ESCAPE[c] ?? c); }
+
 const SEV_COLOR: Record<string, string> = {
   CRITICAL: "#e03131", HIGH: "#e67700", MEDIUM: "#d9770a",
 };
@@ -351,10 +354,6 @@ export function formatSarif(result: ScanResult, version = "1.4.0"): string {
       results: sarifResults,
     }],
   }, null, 2);
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ── JSON ──────────────────────────────────────────────────────────────────

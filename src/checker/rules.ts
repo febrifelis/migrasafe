@@ -274,6 +274,30 @@ export const RULES: Rule[] = [
     message: "VACUUM FULL acquires an exclusive table lock for the full duration of the operation.",
     suggestion: "Use regular VACUUM or pg_repack for online space reclamation.",
   },
+  {
+    id: "SET_LOCK_TIMEOUT_ZERO",
+    severity: "HIGH", category: "safety", dialect: "postgresql",
+    lock: "none", rollback: "easy", dataLoss: "none",
+    pattern: /\bSET\s+(?:LOCAL\s+)?lock_timeout\s*=\s*0\b/i,
+    message: "SET lock_timeout = 0 disables lock acquisition timeout — a blocked migration will wait forever and stall all subsequent queries.",
+    suggestion: "Always set a finite lock_timeout (e.g. SET lock_timeout = '5s') so a blocked statement fails fast instead of causing a pile-up.",
+  },
+  {
+    id: "ALTER_SEQUENCE_RESTART",
+    severity: "HIGH", category: "safety", dialect: "postgresql",
+    lock: "access-exclusive", rollback: "hard", dataLoss: "possible",
+    pattern: /\bALTER\s+SEQUENCE\s+\S+\s+RESTART\b/i,
+    message: "ALTER SEQUENCE RESTART can cause duplicate key violations if the new value overlaps with existing rows.",
+    suggestion: "Verify the RESTART value is higher than the current MAX of any column using this sequence.",
+  },
+  {
+    id: "DROP_EXTENSION",
+    severity: "HIGH", category: "data-loss", dialect: "postgresql",
+    lock: "access-exclusive", rollback: "hard", dataLoss: "possible",
+    pattern: /\bDROP\s+EXTENSION\b/i,
+    message: "DROP EXTENSION removes all objects (functions, types, operators) provided by the extension — dependent objects will fail.",
+    suggestion: "Ensure no application code or schema objects depend on this extension before dropping it.",
+  },
 ];
 
 function sanitize(sql: string): string {

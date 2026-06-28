@@ -68,6 +68,8 @@ program
   .option("--notify-slack <url>", "Send result to a Slack webhook URL")
   .option("--notify-webhook <url>", "Send result to a generic webhook URL")
   .option("--policy", "Evaluate .migrasafe-policy.json after scanning")
+  .option("--quiet", "Suppress all output; use exit code only (0=safe, 1=unsafe, 2=policy fail)")
+  .option("--no-color", "Disable ANSI color output (also respected via NO_COLOR env var)")
   .action(async (
     target: string,
     options: {
@@ -79,8 +81,14 @@ program
       notifySlack?: string;
       notifyWebhook?: string;
       policy?: boolean;
+      quiet?: boolean;
+      color: boolean;
     }
   ) => {
+    // Honour --no-color and NO_COLOR env var (https://no-color.org)
+    if (!options.color || process.env.NO_COLOR !== undefined) {
+      process.env.FORCE_COLOR = "0";
+    }
     const resolved = path.resolve(target);
     if (!fs.existsSync(resolved)) {
       console.error(`Error: path not found — ${resolved}`);
@@ -125,17 +133,19 @@ program
     const scanResult = buildScanResult(results, pluginRules);
 
     // Output
-    const fmt = options.format.toLowerCase();
-    if (fmt === "json") {
-      console.log(formatJson(scanResult));
-    } else if (fmt === "markdown" || fmt === "md") {
-      console.log(formatMarkdown(scanResult));
-    } else if (fmt === "html") {
-      console.log(formatHtml(scanResult));
-    } else if (fmt === "sarif") {
-      console.log(formatSarif(scanResult, VERSION));
-    } else {
-      console.log(formatText(scanResult));
+    if (!options.quiet) {
+      const fmt = options.format.toLowerCase();
+      if (fmt === "json") {
+        console.log(formatJson(scanResult));
+      } else if (fmt === "markdown" || fmt === "md") {
+        console.log(formatMarkdown(scanResult));
+      } else if (fmt === "html") {
+        console.log(formatHtml(scanResult));
+      } else if (fmt === "sarif") {
+        console.log(formatSarif(scanResult, VERSION));
+      } else {
+        console.log(formatText(scanResult));
+      }
     }
 
     // History
@@ -163,12 +173,12 @@ program
       const policy = loadPolicy();
       if (policy) {
         const pr = evaluatePolicy(scanResult, policy);
-        console.log("\n" + formatPolicyResult(pr));
-        if (!pr.passed || pr.requiresApproval) process.exit(2);
-        if (pr.requiresApproval) {
-          console.log("\nRun: migrasafe approve generate <ticket-id>");
+        if (!options.quiet) {
+          console.log("\n" + formatPolicyResult(pr));
+          if (pr.requiresApproval) console.log("\nRun: migrasafe approve generate <ticket-id>");
         }
-      } else {
+        if (!pr.passed || pr.requiresApproval) process.exit(2);
+      } else if (!options.quiet) {
         console.error("Warning: --policy flag used but no .migrasafe-policy.json found.");
       }
     }

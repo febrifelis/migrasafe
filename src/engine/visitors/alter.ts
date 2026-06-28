@@ -67,7 +67,7 @@ registerVisitor({
     const table = ast.table  ?? "table";
     return [{
       ruleId: "RENAME_COLUMN",
-      severity: "MEDIUM",
+      severity: "HIGH",
       message: `RENAME COLUMN ${table}.${col} → ${to} breaks all queries, views, and functions using the old column name.`,
       suggestion: "Add the new column, copy data, update application code, then drop the old column in a separate migration.",
       confidence: ast.confidence,
