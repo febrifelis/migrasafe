@@ -298,6 +298,23 @@ export const RULES: Rule[] = [
     message: "DROP EXTENSION removes all objects (functions, types, operators) provided by the extension — dependent objects will fail.",
     suggestion: "Ensure no application code or schema objects depend on this extension before dropping it.",
   },
+  {
+    id: "REFRESH_MATERIALIZED_VIEW",
+    severity: "HIGH", category: "performance", dialect: "postgresql",
+    lock: "access-exclusive", rollback: "easy", dataLoss: "none",
+    // Must NOT match REFRESH MATERIALIZED VIEW CONCURRENTLY
+    pattern: /\bREFRESH\s+MATERIALIZED\s+VIEW\b(?!\s+CONCURRENTLY)(?:\s+CONCURRENTLY)?\s+(?!CONCURRENTLY)/i,
+    message: "REFRESH MATERIALIZED VIEW without CONCURRENTLY acquires ACCESS EXCLUSIVE — blocks all reads and writes for the duration.",
+    suggestion: "Use REFRESH MATERIALIZED VIEW CONCURRENTLY to refresh without blocking reads. Requires a UNIQUE index on the view.",
+  },
+  {
+    id: "ALTER_TABLE_SET_UNLOGGED",
+    severity: "HIGH", category: "safety", dialect: "postgresql",
+    lock: "access-exclusive", rollback: "hard", dataLoss: "certain",
+    pattern: /\bALTER\s+TABLE\b[\s\S]{0,200}?\bSET\s+UNLOGGED\b/i,
+    message: "ALTER TABLE SET UNLOGGED removes WAL protection — all data in this table is LOST on crash or unclean shutdown.",
+    suggestion: "Only use UNLOGGED for genuinely ephemeral data (caches, session state). Always restore with SET LOGGED before any failover.",
+  },
 ];
 
 function sanitize(sql: string): string {

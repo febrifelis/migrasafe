@@ -33,23 +33,42 @@ registerVisitor({
 });
 
 registerVisitor({
-  id: "alter-add-column-volatile-default-visitor",
-  description: "Detects ADD COLUMN NOT NULL with a volatile DEFAULT — causes table rewrite in PostgreSQL < 14",
+  id: "alter-add-column-visitor",
+  description: "Detects ADD COLUMN risks: volatile DEFAULT (PG<14 rewrite) and NOT NULL without DEFAULT",
   kinds: ["alter_add_column"],
   visit({ ast, config }) {
     const def = ast.columnDef;
-    if (!def || def.nullable || !def.hasDefault || !def.hasVolatileDefault) return [];
+    if (!def) return [];
     const dialect = config.dialect ?? "auto";
     if (dialect === "mysql") return [];
     const col = ast.column ?? def.name ?? "column";
     const table = ast.table ?? "table";
-    return [{
-      ruleId: "ALTER_COLUMN_TYPE",
-      severity: "HIGH",
-      message: `ADD COLUMN ${table}.${col} with a volatile DEFAULT and NOT NULL rewrites the entire table in PostgreSQL < 14.`,
-      suggestion: "On PostgreSQL 14+: this is safe (instant). On PG 11–13: add as nullable first, backfill, then SET NOT NULL separately.",
-      confidence: ast.confidence,
-    }];
+    const issues = [];
+
+    // ADD COLUMN with volatile DEFAULT — causes full table rewrite in PostgreSQL < 14
+    // regardless of nullability (existing rows get the volatile value materialized)
+    if (def.hasDefault && def.hasVolatileDefault) {
+      issues.push({
+        ruleId: "ALTER_COLUMN_TYPE",
+        severity: "HIGH" as const,
+        message: `ADD COLUMN ${table}.${col} with a volatile DEFAULT rewrites the entire table in PostgreSQL < 14.`,
+        suggestion: "On PostgreSQL 14+: this is safe (instant). On PG 11–13: add as nullable first without DEFAULT, backfill with UPDATE, then SET DEFAULT separately.",
+        confidence: ast.confidence,
+      });
+    }
+
+    // ADD COLUMN NOT NULL without DEFAULT — will fail on non-empty tables (all existing rows violate constraint)
+    if (!def.nullable && !def.hasDefault) {
+      issues.push({
+        ruleId: "ADD_NOT_NULL_WITHOUT_DEFAULT",
+        severity: "HIGH" as const,
+        message: `ADD COLUMN ${table}.${col} is NOT NULL without a DEFAULT — will fail on any non-empty table.`,
+        suggestion: `Use 3 steps: (1) ADD COLUMN ${col} nullable, (2) UPDATE ${table} SET ${col} = <value> WHERE ${col} IS NULL, (3) ALTER COLUMN ${col} SET NOT NULL.`,
+        confidence: ast.confidence,
+      });
+    }
+
+    return issues;
   },
 });
 
