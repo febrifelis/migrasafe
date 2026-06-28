@@ -46,6 +46,57 @@ function riskLevelColor(level: RiskReport["level"]): string {
   return chalk.green(level);
 }
 
+export function formatCompact(result: ScanResult): string {
+  const lines: string[] = [];
+  const filesScanned = result.results.length;
+
+  lines.push("");
+
+  let hasIssues = false;
+  for (const fileResult of result.results) {
+    if (fileResult.issues.length === 0) continue;
+    hasIssues = true;
+    const relFile = path.relative(process.cwd(), fileResult.file);
+    lines.push(chalk.underline(relFile) + chalk.dim(` (${fileResult.issues.length} issue(s))`));
+    for (const issue of fileResult.issues) {
+      const color = SEVERITY_COLOR[issue.severity];
+      const icon = issue.severity === "CRITICAL" ? "✖" : issue.severity === "HIGH" ? "⚠" : "●";
+      const stmt = issue.statement.length > 60 ? issue.statement.slice(0, 57) + "..." : issue.statement;
+      lines.push(`  ${color(`${icon} ${issue.severity.padEnd(8)}`)}  ${chalk.dim(`L${issue.line.toString().padEnd(4)}`)}  ${stmt}`);
+    }
+    lines.push("");
+  }
+
+  if (!hasIssues) {
+    lines.push(chalk.green("✔ All migrations are safe — no issues found.\n"));
+  }
+
+  lines.push(chalk.bold("── Summary ──────────────────────────────"));
+  if (result.criticalCount > 0) lines.push(SEVERITY_COLOR.CRITICAL(`  CRITICAL : ${result.criticalCount}`));
+  if (result.highCount > 0)     lines.push(SEVERITY_COLOR.HIGH(`  HIGH     : ${result.highCount}`));
+  if (result.mediumCount > 0)   lines.push(SEVERITY_COLOR.MEDIUM(`  MEDIUM   : ${result.mediumCount}`));
+  lines.push(`  Total    : ${result.totalIssues} issue(s) across ${filesScanned} file(s)`);
+  lines.push("");
+
+  if (hasIssues) {
+    const r = result.risk;
+    lines.push(`  Risk score: ${r.score}/100  ${riskLevelColor(r.level)}  lock: ${r.maxLock}  rollback: ${r.maxRollback}`);
+    if (r.hasIrreversible || r.hasCertainDataLoss) {
+      lines.push(chalk.red.bold("  ⚠  Take a full backup before running this migration."));
+    }
+    lines.push("");
+  }
+
+  if (result.safe) {
+    lines.push(chalk.green.bold("✔ SAFE — ready to deploy to production"));
+  } else {
+    lines.push(chalk.red.bold("✖ UNSAFE — resolve all CRITICAL/HIGH issues before deploying"));
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
 export function formatText(result: ScanResult): string {
   const lines: string[] = [];
   const filesScanned = result.results.length;

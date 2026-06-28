@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { checkDirectory, checkFile, buildScanResult } from "./checker/checker";
-import { formatText, formatJson, formatMarkdown, formatHtml, formatSarif } from "./output/formatter";
+import { formatText, formatCompact, formatJson, formatMarkdown, formatHtml, formatSarif } from "./output/formatter";
 import { loadConfig } from "./config";
 import { Severity } from "./types";
 import { RULES } from "./checker/rules";
@@ -68,6 +68,7 @@ program
   .option("--notify-slack <url>", "Send result to a Slack webhook URL")
   .option("--notify-webhook <url>", "Send result to a generic webhook URL")
   .option("--policy", "Evaluate .migrasafe-policy.json after scanning")
+  .option("--compact", "One line per issue — reduces output for large files")
   .option("--quiet", "Suppress all output; use exit code only (0=safe, 1=unsafe, 2=policy fail)")
   .option("--no-color", "Disable ANSI color output (also respected via NO_COLOR env var)")
   .action(async (
@@ -81,6 +82,7 @@ program
       notifySlack?: string;
       notifyWebhook?: string;
       policy?: boolean;
+      compact?: boolean;
       quiet?: boolean;
       color: boolean;
     }
@@ -148,6 +150,8 @@ program
         console.log(formatHtml(scanResult));
       } else if (fmt === "sarif") {
         console.log(formatSarif(scanResult, VERSION));
+      } else if (options.compact) {
+        console.log(formatCompact(scanResult));
       } else {
         console.log(formatText(scanResult));
       }
