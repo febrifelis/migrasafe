@@ -147,6 +147,41 @@ registerVisitor({
 });
 
 registerVisitor({
+  id: "alter-add-constraint-visitor",
+  description: "Detects ADD CONSTRAINT that scans the table under a heavy lock",
+  kinds: ["alter_add_constraint"],
+  visit({ ast }) {
+    const ct = (ast.constraintType ?? "").toUpperCase();
+    const table = ast.table ?? "table";
+    const name = ast.constraintName ? ` ${ast.constraintName}` : "";
+
+    if (ct === "PRIMARY") {
+      return [{
+        ruleId: "ADD_PRIMARY_KEY",
+        severity: "HIGH",
+        message: `ADD PRIMARY KEY${name} on ${table} acquires ACCESS EXCLUSIVE and validates every row — blocks all reads and writes.`,
+        suggestion: "Create a UNIQUE index CONCURRENTLY first, then ADD CONSTRAINT ... PRIMARY KEY USING INDEX to make the promotion lock-free.",
+        confidence: ast.confidence,
+      }];
+    }
+
+    if (ct === "FOREIGN") {
+      // NOT VALID skips the table scan — only acquires a brief ShareRowExclusiveLock
+      if (ast.isNotValid) return [];
+      return [{
+        ruleId: "ADD_FOREIGN_KEY",
+        severity: "HIGH",
+        message: `ADD FOREIGN KEY${name} on ${table} scans the entire table to validate existing rows — long lock proportional to table size.`,
+        suggestion: "Use ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID to skip the scan, then VALIDATE CONSTRAINT in a separate step (uses ShareUpdateExclusiveLock).",
+        confidence: ast.confidence,
+      }];
+    }
+
+    return [];
+  },
+});
+
+registerVisitor({
   id: "alter-drop-constraint-visitor",
   description: "Detects DROP CONSTRAINT which removes data integrity guarantees",
   kinds: ["alter_drop_constraint"],

@@ -325,9 +325,29 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
     r.constraintName = ts.readIdent();
     const ctype = ts.peek();
     r.kind = "alter_add_constraint";
-    if (ctype.kind === "kw") ts.next();
+    if (ctype.kind === "kw") {
+      r.constraintType = ctype.value; // PRIMARY, FOREIGN, UNIQUE, CHECK
+      ts.next();
+      if (ctype.value === "FOREIGN" || ctype.value === "PRIMARY") ts.eatKw("KEY");
+    }
+    // NOT VALID = skip scan; VALID is not a keyword so check only for NOT at depth 0
+    r.isNotValid = ts.hasKwAhead("NOT");
     r.confidence = 0.9;
     return r;
+  }
+
+  // ADD PRIMARY KEY / ADD FOREIGN KEY / ADD UNIQUE / ADD CHECK without CONSTRAINT name
+  {
+    const kw = ts.peek();
+    if (kw.kind === "kw" && ["PRIMARY", "FOREIGN", "UNIQUE", "CHECK"].includes(kw.value)) {
+      r.kind = "alter_add_constraint";
+      r.constraintType = kw.value;
+      ts.next();
+      if (kw.value === "PRIMARY" || kw.value === "FOREIGN") ts.eatKw("KEY");
+      r.isNotValid = ts.hasKwAhead("NOT");
+      r.confidence = 0.85;
+      return r;
+    }
   }
 
   ts.eatSeq("IF", "NOT", "EXISTS");

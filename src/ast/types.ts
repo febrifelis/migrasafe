@@ -34,6 +34,8 @@ export interface ParsedStatement {
   newType?: string;
   hasUsing?: boolean;
   reindexScope?: string;
+  constraintType?: string;
+  isNotValid?: boolean;
   columnDef?: ColumnDef;
   indexName?: string;
   constraintName?: string;

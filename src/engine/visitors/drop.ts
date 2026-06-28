@@ -83,6 +83,22 @@ registerVisitor({
 });
 
 registerVisitor({
+  id: "drop-view-visitor",
+  description: "Detects DROP VIEW which breaks all queries and reports depending on it",
+  kinds: ["drop_view"],
+  visit({ ast }) {
+    const view = ast.table ?? "view";
+    return [{
+      ruleId: "DROP_VIEW",
+      severity: "HIGH",
+      message: `DROP VIEW ${view} breaks all queries, reports, and application code that reference this view.`,
+      suggestion: "Create a replacement view first. Deprecate the old view name in application code. Drop only after all references are removed.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
   id: "drop-owned-visitor",
   description: "Detects DROP OWNED BY which removes all objects owned by a role",
   kinds: ["drop_owned"],
