@@ -344,6 +344,8 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
       ts.next();
       if (ctype.value === "FOREIGN" || ctype.value === "PRIMARY") ts.eatKw("KEY");
     }
+    // USING INDEX = promotes an existing pre-built index, no table scan required
+    r.hasUsing = ts.hasKwAhead("USING");
     // NOT VALID = skip scan; VALID is not a keyword so check only for NOT at depth 0
     r.isNotValid = ts.hasKwAhead("NOT");
     r.confidence = 0.9;
@@ -486,6 +488,9 @@ function parseAlterColumn(ts: TokenStream, r: ParsedStatement): ParsedStatement 
   if (action.value === "TYPE") {
     r.kind = "alter_alter_column_type"; r.confidence = 0.95;
     r.newType = ts.readIdent();
+    if (r.newType?.toUpperCase() === "CHARACTER" && ts.peek().kind === "ident" && ts.peek().value.toUpperCase() === "VARYING") {
+      ts.next(); r.newType = "CHARACTER VARYING";
+    }
     r.hasUsing = ts.hasKwAhead("USING");
   } else if (action.value === "SET") {
     if (ts.eatSeq("NOT", "NULL")) {
@@ -494,6 +499,11 @@ function parseAlterColumn(ts: TokenStream, r: ParsedStatement): ParsedStatement 
       r.kind = "alter_set_default"; r.confidence = 0.9;
     } else if (ts.eatSeq("DATA", "TYPE")) {
       r.kind = "alter_alter_column_type"; r.confidence = 0.9;
+      r.newType = ts.readIdent();
+      if (r.newType?.toUpperCase() === "CHARACTER" && ts.peek().kind === "ident" && ts.peek().value.toUpperCase() === "VARYING") {
+        ts.next(); r.newType = "CHARACTER VARYING";
+      }
+      r.hasUsing = ts.hasKwAhead("USING");
     }
     // SET STATISTICS / SET (n_distinct=...) / SET STORAGE etc. are safe planner hints — leave as unknown
   } else if (action.value === "DROP") {

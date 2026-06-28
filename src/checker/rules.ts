@@ -340,6 +340,22 @@ export const RULES: Rule[] = [
     suggestion: "Use ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID, then VALIDATE CONSTRAINT separately.",
   },
   {
+    id: "ADD_UNIQUE_CONSTRAINT",
+    severity: "HIGH", category: "safety", dialect: "all",
+    lock: "access-exclusive", rollback: "easy", dataLoss: "none",
+    pattern: /^$/,
+    message: "ADD UNIQUE acquires ACCESS EXCLUSIVE and scans every row to validate uniqueness.",
+    suggestion: "Create a UNIQUE index CONCURRENTLY first, then ADD CONSTRAINT ... UNIQUE USING INDEX.",
+  },
+  {
+    id: "ADD_CHECK_CONSTRAINT",
+    severity: "MEDIUM", category: "safety", dialect: "all",
+    lock: "access-exclusive", rollback: "easy", dataLoss: "none",
+    pattern: /^$/,
+    message: "ADD CHECK without NOT VALID scans every row — holds ACCESS EXCLUSIVE for the duration.",
+    suggestion: "Use ADD CONSTRAINT ... CHECK ... NOT VALID, then VALIDATE CONSTRAINT separately.",
+  },
+  {
     id: "DROP_VIEW",
     severity: "HIGH", category: "breaking-change", dialect: "all",
     lock: "access-exclusive", rollback: "hard", dataLoss: "none",

@@ -219,6 +219,8 @@ registerVisitor({
     const name = ast.constraintName ? ` ${ast.constraintName}` : "";
 
     if (ct === "PRIMARY") {
+      // USING INDEX promotes a pre-built UNIQUE index — no table scan, just a brief metadata update
+      if (ast.hasUsing) return [];
       return [{
         ruleId: "ADD_PRIMARY_KEY",
         severity: "HIGH",
@@ -236,6 +238,28 @@ registerVisitor({
         severity: "HIGH",
         message: `ADD FOREIGN KEY${name} on ${table} scans the entire table to validate existing rows — long lock proportional to table size.`,
         suggestion: "Use ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID to skip the scan, then VALIDATE CONSTRAINT in a separate step (uses ShareUpdateExclusiveLock).",
+        confidence: ast.confidence,
+      }];
+    }
+
+    if (ct === "UNIQUE") {
+      return [{
+        ruleId: "ADD_UNIQUE_CONSTRAINT",
+        severity: "HIGH",
+        message: `ADD UNIQUE${name} on ${table} acquires ACCESS EXCLUSIVE and scans every row to validate uniqueness — blocks all reads and writes.`,
+        suggestion: "Create a UNIQUE index CONCURRENTLY first, then ADD CONSTRAINT ... UNIQUE USING INDEX to make the promotion lock-free.",
+        confidence: ast.confidence,
+      }];
+    }
+
+    if (ct === "CHECK") {
+      // NOT VALID skips the row scan
+      if (ast.isNotValid) return [];
+      return [{
+        ruleId: "ADD_CHECK_CONSTRAINT",
+        severity: "MEDIUM",
+        message: `ADD CHECK${name} on ${table} scans every row to validate existing data — holds ACCESS EXCLUSIVE for the duration.`,
+        suggestion: "Use ADD CONSTRAINT ... CHECK ... NOT VALID to skip the scan, then VALIDATE CONSTRAINT in a separate step.",
         confidence: ast.confidence,
       }];
     }
