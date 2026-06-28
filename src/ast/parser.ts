@@ -276,7 +276,12 @@ function parseAlter(ts: TokenStream, r: ParsedStatement): ParsedStatement {
   if (obj.kind !== "kw") return r;
   ts.next();
 
-  if (obj.value === "SYSTEM") { return { ...r, kind: "alter_system", confidence: 0.95 }; }
+  if (obj.value === "SYSTEM") {
+    const sysAction = ts.peek();
+    const action = (sysAction.kind === "kw" || sysAction.kind === "ident") ? sysAction.value.toUpperCase() : "";
+    if (action) ts.next();
+    return { ...r, kind: "alter_system", alterSystemAction: action || "SET", confidence: 0.95 };
+  }
   if (obj.value !== "TABLE") return r;
 
   ts.eatSeq("IF", "EXISTS");
@@ -295,7 +300,16 @@ function parseAlter(ts: TokenStream, r: ParsedStatement): ParsedStatement {
     case "ALTER":   return parseAlterColumn(ts, r);
     case "ENABLE":  if (ts.eatKw("TRIGGER")) { r.kind = "alter_enable_trigger";  r.confidence = 0.9; } break;
     case "DISABLE": if (ts.eatKw("TRIGGER")) { r.kind = "alter_disable_trigger"; r.confidence = 0.9; } break;
-    case "DETACH":  if (ts.eatKw("PARTITION")) { r.kind = "detach_partition"; r.confidence = 0.9; } break;
+    case "ATTACH":
+      if (ts.eatKw("PARTITION")) { r.kind = "attach_partition"; r.confidence = 0.9; }
+      break;
+    case "DETACH":
+      if (ts.eatKw("PARTITION")) {
+        r.kind = "detach_partition";
+        r.isConcurrent = ts.hasKwAhead("CONCURRENTLY");
+        r.confidence = 0.9;
+      }
+      break;
     case "MODIFY":
       ts.eatKw("COLUMN");
       r.kind = "alter_alter_column_type";

@@ -83,6 +83,21 @@ registerVisitor({
 });
 
 registerVisitor({
+  id: "drop-trigger-visitor",
+  description: "Detects DROP TRIGGER which removes data integrity and audit enforcement",
+  kinds: ["drop_trigger"],
+  visit({ ast }) {
+    return [{
+      ruleId: "DROP_TRIGGER",
+      severity: "HIGH",
+      message: "DROP TRIGGER removes validation or audit logic — data integrity may be bypassed silently after this point.",
+      suggestion: "Verify the trigger is truly obsolete. If replacing it, CREATE the new trigger before DROPping the old one.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
   id: "drop-function-visitor",
   description: "Detects DROP FUNCTION/PROCEDURE which breaks all callers at runtime",
   kinds: ["drop_function"],

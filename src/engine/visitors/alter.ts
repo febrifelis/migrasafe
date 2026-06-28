@@ -265,11 +265,62 @@ registerVisitor({
   description: "Detects ALTER SYSTEM which modifies server-level configuration",
   kinds: ["alter_system"],
   visit({ ast }) {
+    // RESET reverts to compiled-in default — still requires reload but much less risky
+    if ((ast.alterSystemAction ?? "SET") === "RESET") {
+      return [{
+        ruleId: "ALTER_SYSTEM",
+        severity: "MEDIUM",
+        message: "ALTER SYSTEM RESET reverts a GUC to its default — requires pg_reload_conf() or a server restart to take effect.",
+        suggestion: "Run SELECT pg_reload_conf() after this statement if the parameter supports online reload.",
+        confidence: ast.confidence,
+      }];
+    }
     return [{
       ruleId: "ALTER_SYSTEM",
       severity: "CRITICAL",
-      message: "ALTER SYSTEM modifies postgresql.conf — requires a server reload or restart to take effect.",
+      message: "ALTER SYSTEM SET modifies postgresql.conf — requires a server reload or restart to take effect.",
       suggestion: "Use pg_reload_conf() for non-restart parameters. Restart-required changes should be planned during a maintenance window.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
+  id: "attach-partition-visitor",
+  description: "Detects ALTER TABLE ATTACH PARTITION — acquires brief ACCESS EXCLUSIVE",
+  kinds: ["attach_partition"],
+  visit({ ast }) {
+    const table = ast.table ?? "table";
+    return [{
+      ruleId: "ATTACH_PARTITION",
+      severity: "MEDIUM",
+      message: `ATTACH PARTITION on ${table} acquires a brief ACCESS EXCLUSIVE lock during the metadata update — blocks all traffic momentarily.`,
+      suggestion: "Run during off-peak. Use ADD CONSTRAINT ... CHECK NOT VALID on the partition first so the lock phase is nearly instantaneous.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
+  id: "detach-partition-visitor",
+  description: "Detects DETACH PARTITION — concurrent vs non-concurrent lock differ significantly",
+  kinds: ["detach_partition"],
+  visit({ ast }) {
+    const table = ast.table ?? "table";
+    if (ast.isConcurrent) {
+      return [{
+        ruleId: "DETACH_PARTITION",
+        severity: "MEDIUM",
+        message: `DETACH PARTITION CONCURRENTLY on ${table} is non-blocking but still removes the partition from query routing — queries targeting the partition by name will fail.`,
+        suggestion: "Ensure no application code directly references the detached partition before proceeding.",
+        confidence: ast.confidence,
+      }];
+    }
+    return [{
+      ruleId: "DETACH_PARTITION",
+      severity: "HIGH",
+      message: `DETACH PARTITION on ${table} acquires ACCESS EXCLUSIVE — blocks all reads and writes for the duration. Use DETACH PARTITION ... CONCURRENTLY (PG 14+) for zero downtime.`,
+      suggestion: "Upgrade to PostgreSQL 14+ and use DETACH PARTITION ... CONCURRENTLY to avoid locking.",
       confidence: ast.confidence,
     }];
   },

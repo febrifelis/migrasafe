@@ -13,7 +13,7 @@ export type StatementKind =
   | "create_schema" | "create_type" | "create_domain"
   | "delete" | "update" | "insert" | "select" | "truncate"
   | "reindex" | "vacuum" | "vacuum_full" | "cluster" | "analyze" | "lock_table"
-  | "detach_partition"
+  | "detach_partition" | "attach_partition"
   | "unknown";
 
 export interface ColumnDef {
@@ -36,6 +36,7 @@ export interface ParsedStatement {
   reindexScope?: string;
   constraintType?: string;
   isNotValid?: boolean;
+  alterSystemAction?: string;
   columnDef?: ColumnDef;
   indexName?: string;
   constraintName?: string;
