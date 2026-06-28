@@ -135,6 +135,11 @@ program
     // Output
     if (!options.quiet) {
       const fmt = options.format.toLowerCase();
+      const VALID_FORMATS = ["text", "json", "markdown", "md", "html", "sarif"];
+      if (!VALID_FORMATS.includes(fmt)) {
+        console.error(`Error: invalid --format "${options.format}". Valid values: text, json, markdown, html, sarif`);
+        process.exit(1);
+      }
       if (fmt === "json") {
         console.log(formatJson(scanResult));
       } else if (fmt === "markdown" || fmt === "md") {
