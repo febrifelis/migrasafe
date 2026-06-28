@@ -31,7 +31,7 @@ registerVisitor({
     if (hasBackfill) return [];
 
     return [{
-      ruleId: "ADD_NOT_NULL_WITHOUT_DEFAULT",
+      ruleId: "ALTER_COLUMN_SET_NOT_NULL",
       severity: "HIGH",
       message: `SET NOT NULL on ${table}.${col} without a preceding backfill — existing NULL rows will cause a constraint violation.`,
       suggestion: `Run: UPDATE ${table} SET ${col} = <default> WHERE ${col} IS NULL  before applying SET NOT NULL.`,
@@ -113,7 +113,7 @@ registerVisitor({
   visit({ ast }) {
     return [{
       ruleId: "ALTER_SYSTEM",
-      severity: "HIGH",
+      severity: "CRITICAL",
       message: "ALTER SYSTEM modifies postgresql.conf — requires a server reload or restart to take effect.",
       suggestion: "Use pg_reload_conf() for non-restart parameters. Restart-required changes should be planned during a maintenance window.",
       confidence: ast.confidence,

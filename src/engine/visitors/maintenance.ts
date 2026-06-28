@@ -24,7 +24,7 @@ registerVisitor({
     if (ast.isConcurrent) return [];
     const target = ast.indexName ?? ast.table ?? "index";
     return [{
-      ruleId: "REINDEX_WITHOUT_CONCURRENT",
+      ruleId: "REINDEX_WITHOUT_CONCURRENTLY",
       severity: "MEDIUM",
       message: `REINDEX ${target} without CONCURRENTLY holds an exclusive lock — reads and writes on indexed table are blocked.`,
       suggestion: "Use REINDEX CONCURRENTLY (PostgreSQL 12+) to rebuild the index without blocking.",

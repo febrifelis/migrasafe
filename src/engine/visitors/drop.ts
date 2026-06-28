@@ -25,7 +25,7 @@ registerVisitor({
     const col = ast.column ? ` (${ast.table}.${ast.column})` : "";
     return [{
       ruleId: "DROP_COLUMN",
-      severity: "HIGH",
+      severity: "CRITICAL",
       message: `DROP COLUMN${col} is irreversible — data cannot be recovered without a backup.`,
       suggestion: "Add the column back as nullable first. Deprecate in application code. Drop only after all references are removed.",
       confidence: ast.confidence,

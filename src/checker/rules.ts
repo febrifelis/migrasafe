@@ -268,7 +268,7 @@ export const RULES: Rule[] = [
   },
   {
     id: "VACUUM_FULL",
-    severity: "MEDIUM", category: "performance", dialect: "postgresql",
+    severity: "HIGH", category: "performance", dialect: "postgresql",
     lock: "access-exclusive", rollback: "easy", dataLoss: "none",
     pattern: /\bVACUUM\s+FULL\b/i,
     message: "VACUUM FULL acquires an exclusive table lock for the full duration of the operation.",
@@ -278,7 +278,7 @@ export const RULES: Rule[] = [
     id: "SET_LOCK_TIMEOUT_ZERO",
     severity: "HIGH", category: "safety", dialect: "postgresql",
     lock: "none", rollback: "easy", dataLoss: "none",
-    pattern: /\bSET\s+(?:LOCAL\s+)?lock_timeout\s*=\s*0\b/i,
+    pattern: /\bSET\s+(?:LOCAL\s+)?lock_timeout\s*(?:=|TO)\s*(?:'0'|"0"|0)(?:\s|;|$)/i,
     message: "SET lock_timeout = 0 disables lock acquisition timeout — a blocked migration will wait forever and stall all subsequent queries.",
     suggestion: "Always set a finite lock_timeout (e.g. SET lock_timeout = '5s') so a blocked statement fails fast instead of causing a pile-up.",
   },
