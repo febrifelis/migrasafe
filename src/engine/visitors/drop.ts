@@ -83,6 +83,21 @@ registerVisitor({
 });
 
 registerVisitor({
+  id: "drop-function-visitor",
+  description: "Detects DROP FUNCTION/PROCEDURE which breaks all callers at runtime",
+  kinds: ["drop_function"],
+  visit({ ast }) {
+    return [{
+      ruleId: "DROP_FUNCTION",
+      severity: "HIGH",
+      message: "DROP FUNCTION removes the function — all callers will error at runtime with 'function does not exist'.",
+      suggestion: "Create a replacement function first. Deprecate callers. Drop only after all references are removed.",
+      confidence: ast.confidence,
+    }];
+  },
+});
+
+registerVisitor({
   id: "drop-view-visitor",
   description: "Detects DROP VIEW which breaks all queries and reports depending on it",
   kinds: ["drop_view"],

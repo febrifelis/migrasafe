@@ -356,6 +356,22 @@ export const RULES: Rule[] = [
     suggestion: "Add columns only at the end; never remove or reorder. Test all dependent queries before deploying.",
   },
   {
+    id: "CREATE_OR_REPLACE_FUNCTION",
+    severity: "MEDIUM", category: "breaking-change", dialect: "all",
+    lock: "none", rollback: "hard", dataLoss: "none",
+    pattern: /\bCREATE\s+OR\s+REPLACE\s+(?:FUNCTION|PROCEDURE)\b/i,
+    message: "CREATE OR REPLACE FUNCTION silently changes behavior — callers using the old signature or return type will break.",
+    suggestion: "Add a new function with a different name, migrate callers, then drop the old function. Never change return type in-place.",
+  },
+  {
+    id: "DROP_FUNCTION",
+    severity: "HIGH", category: "breaking-change", dialect: "all",
+    lock: "none", rollback: "hard", dataLoss: "none",
+    pattern: /\bDROP\s+(?:FUNCTION|PROCEDURE|AGGREGATE)\b/i,
+    message: "DROP FUNCTION removes the function — all callers will error at runtime.",
+    suggestion: "Ensure no application code, triggers, views, or other functions call this before dropping.",
+  },
+  {
     id: "REFRESH_MATERIALIZED_VIEW",
     severity: "HIGH", category: "performance", dialect: "postgresql",
     lock: "access-exclusive", rollback: "easy", dataLoss: "none",

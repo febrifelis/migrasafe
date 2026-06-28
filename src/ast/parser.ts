@@ -382,11 +382,26 @@ function parseAlterAdd(ts: TokenStream, r: ParsedStatement): ParsedStatement {
         // consume the default expression; detect volatile function calls via '('
         // stop at depth-0 constraint keywords (NOT NULL, UNIQUE, PRIMARY, etc.)
         const CONSTRAINT_KWS = new Set(["NOT","NULL","UNIQUE","PRIMARY","REFERENCES","CHECK","GENERATED","CONSTRAINT"]);
+        // Volatile pseudofunctions that appear without parens (non-deterministic)
+        const VOLATILE_NOPARENS = new Set([
+          "CURRENT_TIMESTAMP","CURRENT_DATE","CURRENT_TIME","CURRENT_USER","CURRENT_ROLE",
+          "TRANSACTION_TIMESTAMP","STATEMENT_TIMESTAMP","CLOCK_TIMESTAMP","TIMEOFDAY",
+        ]);
+        let prevTokenKind: string = "start";
         while (!ts.is("eof") && !ts.is("semi") && !(ts.is("comma") && depth === 0)) {
           if (depth === 0 && ts.peek().kind === "kw" && CONSTRAINT_KWS.has(ts.peek().value)) break;
-          if (ts.is("lparen")) { hasVolatileDefault = true; depth++; }
-          if (ts.is("rparen") && depth === 0) break;
-          if (ts.is("rparen")) depth--;
+          const cur = ts.peek();
+          // Function call: ident or kw immediately before '(' → volatile
+          if (cur.kind === "lparen") {
+            if (prevTokenKind === "ident" || prevTokenKind === "kw") hasVolatileDefault = true;
+            depth++;
+          } else if (cur.kind === "rparen" && depth === 0) break;
+          else if (cur.kind === "rparen") depth--;
+          // Known volatile pseudofunctions without parens
+          else if (cur.kind === "ident" && VOLATILE_NOPARENS.has(cur.value.toUpperCase())) {
+            hasVolatileDefault = true;
+          }
+          prevTokenKind = cur.kind;
           ts.next();
         }
         continue;

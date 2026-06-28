@@ -68,6 +68,57 @@ registerVisitor({
       });
     }
 
+    // Multi-clause ALTER: parser only captures the first ADD COLUMN clause.
+    // Scan raw SQL for additional ADD COLUMN clauses with dangerous patterns.
+    // Matches "ADD COLUMN name type ... DEFAULT func(" or "... NOT NULL" without DEFAULT.
+    if (ast.raw) {
+      // Skip past the first ADD COLUMN clause (find first comma at depth 0)
+      let depth2 = 0;
+      let firstCommaIdx = -1;
+      for (let i = 0; i < ast.raw.length; i++) {
+        if (ast.raw[i] === "(") depth2++;
+        else if (ast.raw[i] === ")") depth2--;
+        else if (ast.raw[i] === "," && depth2 === 0) { firstCommaIdx = i; break; }
+      }
+      if (firstCommaIdx !== -1) {
+        const rest = ast.raw.slice(firstCommaIdx + 1);
+        // Detect volatile DEFAULT in remaining clauses: function call pattern (word followed by '(')
+        const volatileInRest = /\bDEFAULT\s+(?:[^,;(]*\w\s*\(|CURRENT_TIMESTAMP|CURRENT_DATE|CURRENT_TIME|TRANSACTION_TIMESTAMP)/i.test(rest);
+        // Detect NOT NULL without DEFAULT in remaining ADD COLUMN clauses
+        const notNullNoDef = /\bADD\s+(?:COLUMN\s+)?\w+\s+\w[\w\s<>]*\bNOT\s+NULL\b(?![\s\S]*?\bDEFAULT\b)/i.test(rest);
+        // Detect DROP COLUMN in remaining clauses
+        const dropInRest = /\bDROP\s+COLUMN\b/i.test(rest);
+
+        if (volatileInRest) {
+          issues.push({
+            ruleId: "ALTER_COLUMN_TYPE",
+            severity: "HIGH" as const,
+            message: `Multi-clause ALTER TABLE on ${table} contains a later ADD COLUMN with a volatile DEFAULT — rewrites table in PostgreSQL < 14.`,
+            suggestion: "Split into separate ALTER TABLE statements. On PG 14+: safe. On PG 11–13: add nullable, backfill, then SET DEFAULT.",
+            confidence: 0.7,
+          });
+        }
+        if (notNullNoDef && !volatileInRest) {
+          issues.push({
+            ruleId: "ADD_NOT_NULL_WITHOUT_DEFAULT",
+            severity: "HIGH" as const,
+            message: `Multi-clause ALTER TABLE on ${table} contains a later ADD COLUMN NOT NULL without DEFAULT — will fail on non-empty tables.`,
+            suggestion: "Use 3 steps: add nullable, backfill, then SET NOT NULL.",
+            confidence: 0.65,
+          });
+        }
+        if (dropInRest) {
+          issues.push({
+            ruleId: "DROP_COLUMN",
+            severity: "CRITICAL" as const,
+            message: `Multi-clause ALTER TABLE on ${table} contains a DROP COLUMN in a later clause — irreversible data loss.`,
+            suggestion: "Separate DROP COLUMN into its own migration. Add the column back as nullable first, deprecate, then drop.",
+            confidence: 0.7,
+          });
+        }
+      }
+    }
+
     return issues;
   },
 });
