@@ -4,7 +4,7 @@ import { analyzeLock } from "../analysis/lock";
 import { analyzeRollback } from "../analysis/rollback";
 import { analyzeCost } from "../analysis/cost";
 import { analyzeRewrite, downtimeLabel } from "../analysis/rewrite";
-import { Rule } from "../checker/rules";
+import { Rule, RULES } from "../checker/rules";
 
 export interface RiskSubScores {
   lockScore:     number;   // 0–100: severity of lock acquired
@@ -63,7 +63,8 @@ export function computeEnhancedRisk(
     }
   }
 
-  const ruleMap = new Map([...extraRules].map((r) => [r.id, r]));
+  // Merge built-in rules with any plugin/extra rules; extra rules override built-ins on collision
+  const ruleMap = new Map([...RULES, ...extraRules].map((r) => [r.id, r]));
   const locks:      LockType[]           = [];
   const rollbacks:  RollbackDifficulty[] = [];
   const dataLosses: DataLossRisk[]       = [];

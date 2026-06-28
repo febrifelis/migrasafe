@@ -74,7 +74,7 @@ export const RULES: Rule[] = [
   {
     id: "TRUNCATE",
     severity: "CRITICAL", category: "data-loss", dialect: "all",
-    lock: "access-exclusive", rollback: "hard", dataLoss: "certain",
+    lock: "access-exclusive", rollback: "irreversible", dataLoss: "certain",
     pattern: /\bTRUNCATE\b/i,
     message: "TRUNCATE will delete all rows in the table immediately.",
     suggestion: "Do not run TRUNCATE in production unless absolutely intentional.",
@@ -82,7 +82,7 @@ export const RULES: Rule[] = [
   {
     id: "DELETE_WITHOUT_WHERE",
     severity: "CRITICAL", category: "data-loss", dialect: "all",
-    lock: "row-exclusive", rollback: "hard", dataLoss: "certain",
+    lock: "row-exclusive", rollback: "irreversible", dataLoss: "certain",
     pattern: /\bDELETE\b/i,           // broad trigger; refined by matcher below
     message: "DELETE without WHERE will remove every row in the table.",
     suggestion: "Add a WHERE clause to target only the intended rows.",
@@ -116,7 +116,8 @@ export const RULES: Rule[] = [
     id: "ADD_NOT_NULL_WITHOUT_DEFAULT",
     severity: "HIGH", category: "safety", dialect: "all",
     lock: "access-exclusive", rollback: "easy", dataLoss: "none",
-    pattern: /\bADD\s+COLUMN\s+\S+[\s\S]+?\bNOT\s+NULL\b(?![\s\S]*\bDEFAULT\b)/i,
+    // Match ADD COLUMN ... NOT NULL only when DEFAULT appears nowhere in the column definition
+    pattern: /\bADD\s+COLUMN\s+(?![\s\S]*\bDEFAULT\b)[\s\S]+?\bNOT\s+NULL\b/i,
     message: "ADD COLUMN NOT NULL without DEFAULT will fail on non-empty tables.",
     suggestion: "Use 3 steps: (1) ADD COLUMN nullable, (2) backfill data, (3) SET NOT NULL.",
   },

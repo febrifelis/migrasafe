@@ -42,7 +42,7 @@ registerVisitor({
     const table = ast.table ?? ast.tables[0] ?? "table";
     return [{
       ruleId: "TRUNCATE",
-      severity: "HIGH",
+      severity: "CRITICAL",
       message: `TRUNCATE ${table} immediately removes all rows and bypasses row-level triggers — no row-by-row rollback.`,
       suggestion: "Ensure this is the intended operation. Test in a transaction that can be rolled back: BEGIN; TRUNCATE; (verify); ROLLBACK or COMMIT.",
       confidence: ast.confidence,
