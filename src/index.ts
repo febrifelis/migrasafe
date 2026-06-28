@@ -67,7 +67,11 @@ program
     if (options.dialect) config.dialect = options.dialect as Dialect;
     const pluginRules = loadPluginRules(config);
 
-    const minSeverity = (options.minSeverity.toUpperCase() as Severity) ?? "INFO";
+    const minSeverity = options.minSeverity.toUpperCase() as Severity;
+    if (!SEVERITY_ORDER.includes(minSeverity)) {
+      console.error(`Error: invalid --min-severity "${options.minSeverity}". Valid values: ${SEVERITY_ORDER.join(", ")}`);
+      process.exit(1);
+    }
     const minIndex = SEVERITY_ORDER.indexOf(minSeverity);
 
     let results;
@@ -434,12 +438,13 @@ program
 
     const hookScript = `#!/bin/sh
 # migrasafe pre-commit hook
-STAGED_SQL=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.sql$')
+# Use -z / --null to safely handle filenames with spaces or special characters
+STAGED_SQL=$(git diff --cached --name-only -z --diff-filter=ACM | tr '\\0' '\\n' | grep '\\.sql$')
 if [ -z "$STAGED_SQL" ]; then
   exit 0
 fi
 echo "migrasafe: checking staged SQL migrations..."
-echo "$STAGED_SQL" | xargs npx migrasafe check
+printf '%s\\0' $STAGED_SQL | xargs -0 npx migrasafe check
 `;
 
     if (fs.existsSync(hookPath)) {

@@ -37,12 +37,22 @@ function post(url: string, body: string, headers: Record<string, string> = {}): 
   });
 }
 
+function validateWebhookUrl(url: string, label: string): void {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") throw new Error("must use https://");
+  } catch (e) {
+    throw new Error(`Invalid ${label}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 export async function sendSlackNotification(
   result: ScanResult,
   target: string,
   cfg: NotificationConfig
 ): Promise<void> {
   if (!cfg.slackWebhookUrl) return;
+  validateWebhookUrl(cfg.slackWebhookUrl, "slackWebhookUrl");
   if (!cfg.notifyAlways && result.safe && !cfg.notifyOnUnsafe) return;
   if (cfg.notifyOnUnsafe && result.safe) return;
 
@@ -84,6 +94,7 @@ export async function sendWebhookNotification(
   cfg: NotificationConfig
 ): Promise<void> {
   if (!cfg.webhookUrl) return;
+  validateWebhookUrl(cfg.webhookUrl, "webhookUrl");
   if (!cfg.notifyAlways && result.safe) return;
 
   const payload = {

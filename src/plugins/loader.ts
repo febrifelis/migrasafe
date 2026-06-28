@@ -33,9 +33,17 @@ export function loadPluginRules(config: MigrasafeConfig, cwd: string = process.c
 
   const rules: Rule[] = [];
   for (const pluginPath of config.plugins) {
-    const resolved = path.isAbsolute(pluginPath) ? pluginPath : path.join(cwd, pluginPath);
+    const resolved = path.isAbsolute(pluginPath) ? pluginPath : path.resolve(cwd, pluginPath);
+
+    // Prevent path traversal: plugin must live inside cwd
+    const rel = path.relative(cwd, resolved);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) {
+      console.error(`[migrasafe plugin] Rejected — plugin path escapes project directory: ${path.basename(pluginPath)}`);
+      continue;
+    }
+
     if (!fs.existsSync(resolved)) {
-      console.error(`[migrasafe plugin] Plugin not found: ${resolved}`);
+      console.error(`[migrasafe plugin] Plugin not found: ${path.basename(pluginPath)}`);
       continue;
     }
     try {
@@ -43,13 +51,14 @@ export function loadPluginRules(config: MigrasafeConfig, cwd: string = process.c
       const mod = require(resolved);
       const exported = mod?.default ?? mod;
 
-      // V3: Check plugin API version declaration
+      // Block plugins that declare an incompatible API version
       const declaredVersion: string | undefined = exported?.PLUGIN_API_VERSION ?? mod?.PLUGIN_API_VERSION;
       if (declaredVersion !== undefined && !SUPPORTED_API_VERSIONS.has(String(declaredVersion))) {
-        console.warn(
+        console.error(
           `[migrasafe plugin] ${path.basename(resolved)} declares API version "${declaredVersion}" ` +
-          `but MigraSafe supports ${[...SUPPORTED_API_VERSIONS].join(", ")}. Loading anyway.`
+          `but MigraSafe only supports ${[...SUPPORTED_API_VERSIONS].join(", ")}. Plugin NOT loaded.`
         );
+        continue;
       }
 
       const candidates: unknown[] = Array.isArray(exported)
@@ -63,7 +72,7 @@ export function loadPluginRules(config: MigrasafeConfig, cwd: string = process.c
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[migrasafe plugin] Failed to load ${resolved}: ${msg}`);
+      console.error(`[migrasafe plugin] Failed to load ${path.basename(pluginPath)}: ${msg}`);
     }
   }
   return rules;
