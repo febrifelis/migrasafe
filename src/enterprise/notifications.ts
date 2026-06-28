@@ -1,5 +1,6 @@
 import https from "https";
 import http from "http";
+import crypto from "crypto";
 import { ScanResult } from "../types";
 
 export interface NotificationConfig {
@@ -111,10 +112,13 @@ export async function sendWebhookNotification(
     },
   };
 
+  const body = JSON.stringify(payload);
   const headers: Record<string, string> = {};
   if (cfg.webhookSecret) {
-    headers["X-Migrasafe-Secret"] = cfg.webhookSecret;
+    // Sign with HMAC-SHA256 — receiver should verify X-Migrasafe-Signature, not store the raw secret
+    const sig = crypto.createHmac("sha256", cfg.webhookSecret).update(body).digest("hex");
+    headers["X-Migrasafe-Signature"] = `sha256=${sig}`;
   }
 
-  await post(cfg.webhookUrl, JSON.stringify(payload), headers);
+  await post(cfg.webhookUrl, body, headers);
 }

@@ -307,11 +307,14 @@ program
     if (options.open) {
       const { execFile, spawn } = require("child_process") as typeof import("child_process");
       if (process.platform === "win32") {
-        // On Windows, "start" is a shell built-in — use cmd.exe with array args to avoid injection
-        spawn("cmd.exe", ["/c", "start", "", outPath], { detached: true, stdio: "ignore" }).unref();
+        spawn("cmd.exe", ["/c", "start", "", outPath], { detached: true, stdio: "ignore" })
+          .on("error", (e: Error) => process.stderr.write(`Warning: could not open browser: ${e.message}\n`))
+          .unref();
       } else {
         const opener = process.platform === "darwin" ? "open" : "xdg-open";
-        execFile(opener, [outPath]);
+        execFile(opener, [outPath], (err) => {
+          if (err) process.stderr.write(`Warning: could not open browser: ${err.message}\n`);
+        });
       }
     }
   });
@@ -395,7 +398,8 @@ approveCmd
     console.log(`  Risk      : ${req.riskScore}/100 ${req.riskLevel}`);
     console.log(`  Issues    : ${req.totalIssues}`);
     console.log(`  Requested : ${req.createdAt} by ${req.createdBy}`);
-    if (req.approvedBy) console.log(`  Resolved  : ${req.approvedAt} by ${req.approvedBy}`);
+    const resolvedBy = req.approvedBy ?? req.rejectedBy;
+    if (resolvedBy) console.log(`  Resolved  : ${req.resolvedAt ?? req.approvedAt} by ${resolvedBy}`);
     if (req.notes) console.log(`  Notes     : ${req.notes}`);
     console.log();
     process.exit(req.status === "approved" ? 0 : 1);

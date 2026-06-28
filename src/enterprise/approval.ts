@@ -12,8 +12,11 @@ export interface ApprovalRequest {
   totalIssues: number;
   status: "pending" | "approved" | "rejected";
   approvedBy?: string;
-  approvedAt?: string;
+  rejectedBy?: string;
+  resolvedAt?: string;
   notes?: string;
+  /** @deprecated use resolvedAt */
+  approvedAt?: string;
 }
 
 const APPROVAL_DIR = ".migrasafe-approvals";
@@ -87,7 +90,8 @@ export function approveRequest(
   }
   req.status = "approved";
   req.approvedBy = approvedBy;
-  req.approvedAt = new Date().toISOString();
+  req.resolvedAt = new Date().toISOString();
+  req.approvedAt = req.resolvedAt;
   req.notes = notes;
   fs.writeFileSync(filePath, JSON.stringify(req, null, 2), "utf-8");
 }
@@ -110,8 +114,9 @@ export function rejectRequest(
     throw new Error(`Approval request file is corrupt: ${ticketId}`);
   }
   req.status = "rejected";
-  req.approvedBy = rejectedBy;
-  req.approvedAt = new Date().toISOString();
+  req.rejectedBy = rejectedBy;
+  req.resolvedAt = new Date().toISOString();
+  req.approvedAt = req.resolvedAt;
   req.notes = notes;
   fs.writeFileSync(filePath, JSON.stringify(req, null, 2), "utf-8");
 }
