@@ -150,10 +150,8 @@ program
         console.log(formatHtml(scanResult));
       } else if (fmt === "sarif") {
         console.log(formatSarif(scanResult, VERSION));
-      } else if (options.compact) {
-        console.log(formatCompact(scanResult));
       } else {
-        console.log(formatText(scanResult));
+        console.log(options.compact ? formatCompact(scanResult) : formatText(scanResult));
       }
     }
 
