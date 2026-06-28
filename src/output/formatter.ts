@@ -111,6 +111,10 @@ export function formatText(result: ScanResult): string {
     if (r.rewriteTables && r.rewriteTables.length > 0) {
       lines.push(`  Rewrites  : ${chalk.red(r.rewriteTables.join(", "))} (full table rewrite)`);
     }
+    if (r.subScores) {
+      const s = r.subScores;
+      lines.push(chalk.dim(`  Sub-scores: lock=${s.lockScore} rewrite=${s.rewriteScore} rollback=${s.rollbackScore} downtime=${s.downtimeScore} dataLoss=${s.dataLossScore}`));
+    }
     if (r.hasIrreversible || r.hasCertainDataLoss) {
       lines.push("");
       lines.push(chalk.red.bold("  ⚠  Take a full backup before running this migration."));

@@ -18,6 +18,14 @@ export interface Issue {
   isTableRewrite: boolean;
 }
 
+export interface RiskSubScores {
+  lockScore:     number;
+  rewriteScore:  number;
+  rollbackScore: number;
+  downtimeScore: number;
+  dataLossScore: number;
+}
+
 export interface RiskReport {
   score: number;
   level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -26,14 +34,15 @@ export interface RiskReport {
   maxDataLoss: DataLossRisk;
   hasIrreversible: boolean;
   hasCertainDataLoss: boolean;
-  // V3 fields
   rewriteTables: string[];
   estimatedDowntime: string;
+  subScores: RiskSubScores;
 }
 
 export interface CheckResult {
   file: string;
   issues: Issue[];
+  parsedStatements?: import("../ast/types").ParsedStatement[];
 }
 
 export interface DependencyWarning {
@@ -52,7 +61,6 @@ export interface ScanResult {
   mediumCount: number;
   safe: boolean;
   risk: RiskReport;
-  // V3 fields
   dependencyWarnings: DependencyWarning[];
   workflows: string[];
 }
