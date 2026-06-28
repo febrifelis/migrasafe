@@ -45,6 +45,18 @@ registerVisitor({
     const table = ast.table ?? "table";
     const issues = [];
 
+    // ADD COLUMN GENERATED ALWAYS AS ... STORED — rewrites the whole table
+    // to compute and persist the expression for every existing row
+    if (/\bGENERATED\s+ALWAYS\s+AS\b[\s\S]*?\bSTORED\b/i.test(ast.raw ?? "")) {
+      return [{
+        ruleId: "ALTER_COLUMN_TYPE",
+        severity: "HIGH",
+        message: `ADD COLUMN ${table}.${col} GENERATED ALWAYS AS ... STORED rewrites the entire table — must compute the expression for every existing row.`,
+        suggestion: "Add the column first as nullable without GENERATED, backfill the expression via UPDATE, then add the constraint in a later migration.",
+        confidence: ast.confidence,
+      }];
+    }
+
     // ADD COLUMN with volatile DEFAULT — causes full table rewrite in PostgreSQL < 14
     // regardless of nullability (existing rows get the volatile value materialized)
     if (def.hasDefault && def.hasVolatileDefault) {

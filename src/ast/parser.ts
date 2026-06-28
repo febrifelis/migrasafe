@@ -480,9 +480,8 @@ function parseAlterColumn(ts: TokenStream, r: ParsedStatement): ParsedStatement 
       r.kind = "alter_set_default"; r.confidence = 0.9;
     } else if (ts.eatSeq("DATA", "TYPE")) {
       r.kind = "alter_alter_column_type"; r.confidence = 0.9;
-    } else {
-      r.kind = "alter_alter_column_type"; r.confidence = 0.7;
     }
+    // SET STATISTICS / SET (n_distinct=...) / SET STORAGE etc. are safe planner hints — leave as unknown
   } else if (action.value === "DROP") {
     if (ts.eatSeq("NOT", "NULL")) {
       r.kind = "alter_drop_not_null"; r.confidence = 0.95;
