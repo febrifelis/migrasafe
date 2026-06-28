@@ -164,7 +164,9 @@ export function checkFile(filePath: string, config: MigrasafeConfig = {}): Check
 
 export function checkDirectory(dirPath: string, config: MigrasafeConfig = {}): CheckResult[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-  const ignorePatterns = (config.ignore ?? []).map((p) => new RegExp(p));
+  const ignorePatterns = (config.ignore ?? []).flatMap((p) => {
+    try { return [new RegExp(p)]; } catch { process.stderr.write(`Warning: invalid ignore pattern skipped: ${p}\n`); return []; }
+  });
 
   const sqlFiles = entries
     .filter((e) => {

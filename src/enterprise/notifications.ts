@@ -31,7 +31,7 @@ function post(url: string, body: string, headers: Record<string, string> = {}): 
       if ((res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300) resolve();
       else reject(new Error(`HTTP ${res.statusCode}`));
     });
-    req.on("error", reject);
+    req.on("error", (err: Error) => reject(new Error(`Webhook request failed: ${err.message}`)));
     req.write(body);
     req.end();
   });

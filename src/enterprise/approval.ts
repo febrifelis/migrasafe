@@ -64,7 +64,7 @@ export function approveRequest(
   if (!fs.existsSync(filePath)) {
     throw new Error(`Approval request not found: ${ticketId}`);
   }
-  const req = JSON.parse(fs.readFileSync(filePath, "utf-8")) as ApprovalRequest;
+  const req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
   if (req.status !== "pending") {
     throw new Error(`Approval request ${ticketId} is already ${req.status}`);
   }
@@ -85,7 +85,7 @@ export function rejectRequest(
   if (!fs.existsSync(filePath)) {
     throw new Error(`Approval request not found: ${ticketId}`);
   }
-  const req = JSON.parse(fs.readFileSync(filePath, "utf-8")) as ApprovalRequest;
+  const req = JSON.parse(fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "")) as ApprovalRequest;
   req.status = "rejected";
   req.approvedBy = rejectedBy;
   req.approvedAt = new Date().toISOString();

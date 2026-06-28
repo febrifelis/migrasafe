@@ -73,7 +73,9 @@ program
     let results;
     try {
       const stat = fs.statSync(resolved);
-      const ignorePatterns = (config.ignore ?? []).map((p) => new RegExp(p));
+      const ignorePatterns = (config.ignore ?? []).flatMap((p) => {
+        try { return [new RegExp(p)]; } catch { process.stderr.write(`Warning: invalid ignore pattern skipped: ${p}\n`); return []; }
+      });
       if (ignorePatterns.some((re) => re.test(resolved))) {
         console.log(`Skipped (ignored): ${resolved}`);
         process.exit(0);
@@ -274,8 +276,14 @@ program
     fs.writeFileSync(outPath, html, "utf-8");
     console.log(`✔ Dashboard written to ${outPath}`);
     if (options.open) {
-      const opener = process.platform === "win32" ? "start" : process.platform === "darwin" ? "open" : "xdg-open";
-      require("child_process").exec(`${opener} "${outPath}"`);
+      const { execFile, spawn } = require("child_process") as typeof import("child_process");
+      if (process.platform === "win32") {
+        // On Windows, "start" is a shell built-in — use cmd.exe with array args to avoid injection
+        spawn("cmd.exe", ["/c", "start", "", outPath], { detached: true, stdio: "ignore" }).unref();
+      } else {
+        const opener = process.platform === "darwin" ? "open" : "xdg-open";
+        execFile(opener, [outPath]);
+      }
     }
   });
 

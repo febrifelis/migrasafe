@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import path from "path";
 import { ScanResult, Severity, RiskReport } from "../types";
+import { RULES } from "../checker/rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SEVERITY_COLOR: Record<Severity, any> = {
@@ -296,7 +297,6 @@ ${totalIssues > 0 ? `
 // ── SARIF 2.1.0 ──────────────────────────────────────────────────────────
 
 export function formatSarif(result: ScanResult, version = "1.4.0"): string {
-  const { RULES } = require("../checker/rules");
   const ruleMap = new Map((RULES as { id: string; message: string; severity: string; suggestion?: string }[])
     .map((r) => [r.id, r]));
 
