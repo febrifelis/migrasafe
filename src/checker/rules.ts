@@ -315,6 +315,22 @@ export const RULES: Rule[] = [
     suggestion: "Verify the RESTART value is higher than the current MAX of any column using this sequence.",
   },
   {
+    id: "ALTER_SEQUENCE_CYCLE",
+    severity: "HIGH", category: "safety", dialect: "postgresql",
+    lock: "none", rollback: "easy", dataLoss: "possible",
+    pattern: /\bALTER\s+SEQUENCE\s+\S+.*?\bCYCLE\b/i,
+    message: "ALTER SEQUENCE CYCLE allows the sequence to wrap around — once max/min is reached, old values are reused and cause duplicate key violations.",
+    suggestion: "Avoid CYCLE on sequences used for primary keys. Use BIGSERIAL or extend the max value instead.",
+  },
+  {
+    id: "ALTER_TABLE_SET_TABLESPACE",
+    severity: "HIGH", category: "safety", dialect: "all",
+    lock: "access-exclusive", rollback: "hard", dataLoss: "none",
+    pattern: /\bALTER\s+TABLE\s+\S+\s+SET\s+TABLESPACE\b/i,
+    message: "ALTER TABLE SET TABLESPACE physically moves all table data to the new tablespace — holds ACCESS EXCLUSIVE for the entire operation.",
+    suggestion: "Run during a maintenance window. Use pg_repack for a less-invasive tablespace migration on large tables.",
+  },
+  {
     id: "DROP_EXTENSION",
     severity: "HIGH", category: "data-loss", dialect: "postgresql",
     lock: "access-exclusive", rollback: "hard", dataLoss: "possible",
