@@ -423,7 +423,7 @@ export const RULES: Rule[] = [
     id: "DROP_FUNCTION",
     severity: "HIGH", category: "breaking-change", dialect: "all",
     lock: "none", rollback: "hard", dataLoss: "none",
-    pattern: /\bDROP\s+(?:FUNCTION|PROCEDURE|AGGREGATE)\b/i,
+    pattern: /\bDROP\s+(?:FUNCTION|PROCEDURE)\b/i,
     message: "DROP FUNCTION removes the function — all callers will error at runtime.",
     suggestion: "Ensure no application code, triggers, views, or other functions call this before dropping.",
   },
