@@ -71,5 +71,18 @@ jobs:
       - name: Check --min-severity flag
         run: node dist/index.js check test-cases/alter_set_not_null.sql --min-severity CRITICAL
 
-      - name: Check MEDIUM-only file is safe
-        run: node dist/index.js check test-cases/lock_table_detected.sql
+      - name: Check LOCK TABLE is detected as HIGH (should exit 1)
+        run: |
+          if node dist/index.js check test-cases/lock_table_detected.sql; then
+            echo "ERROR: lock_table_detected.sql should have exited 1 but exited 0"
+            exit 1
+          fi
+
+      - name: Check --compact flag produces condensed output
+        run: |
+          output=$(node dist/index.js check test-cases/dangerous.sql --compact 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "CRITICAL\|HIGH"
+
+      - name: Check safe migrations with --compact (should exit 0)
+        run: node dist/index.js check test-cases/safe.sql --compact
