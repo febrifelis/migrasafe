@@ -4,6 +4,7 @@
 
 Works in any CI pipeline. Node.js 18+.
 
+[![npm version](https://img.shields.io/npm/v/migrasafe)](https://www.npmjs.com/package/migrasafe)
 [![license](https://img.shields.io/github/license/febrifelis/migrasafe)](./LICENSE)
 [![CI](https://github.com/febrifelis/migrasafe/actions/workflows/ci.yml/badge.svg)](https://github.com/febrifelis/migrasafe/actions/workflows/ci.yml)
 
